@@ -1,0 +1,19 @@
+{
+  "name": "webserver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "express": "^4.21.1",
+    "fflate": "^0.8.2",
+    "isomorphic-fetch": "^3.0.0",
+    "mysql2": "^3.11.5",
+    "node-cron": "^3.0.3",
+    "xml2js": "^0.6.2"
+  }
+}
