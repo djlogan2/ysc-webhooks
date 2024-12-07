@@ -45,7 +45,8 @@ function unarchiveBuffer(base64data, filename) {
 function isdmarc(email) {
     return email.from.emailAddress.name.toLowerCase().includes('dmarc') ||
         email.from.emailAddress.address.toLowerCase().includes('dmarc') ||
-        email.subject.toLowerCase().includes('dmarc');
+        email.subject.toLowerCase().includes('dmarc') ||
+        email.subject.toLowerCase().includes('report domain:');
 }
 
 function runBackgroundDMARC() {

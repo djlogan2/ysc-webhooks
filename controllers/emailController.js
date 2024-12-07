@@ -2,7 +2,7 @@ const emailService = require('../services/emailService');
 
 exports.readEmails = async (req, res) => {
     try {
-        const emails = await emailService.getEmails();
+        const emails = await emailService.getInbox();
         res.json(emails);
     } catch (error) {
         res.status(500).json({message: 'Error reading emails'});
