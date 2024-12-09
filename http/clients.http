@@ -1,0 +1,40 @@
+### Create a new client
+POST http://localhost:3000/api/clients
+Content-Type: application/json
+
+{
+  "client_name": "Dynamic Test Client",
+  "contact_info": "dynamic_test@example.com"
+}
+
+> {%
+    // Ensure response.body is parsed correctly
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("clientId", responseBody.client_id);
+%}
+
+###
+
+### Fetch the created client by ID
+GET http://localhost:3000/api/clients/{{clientId}}
+
+###
+
+### Update the created client
+PUT http://localhost:3000/api/clients/{{clientId}}
+Content-Type: application/json
+
+{
+  "client_name": "Updated Dynamic Client",
+  "contact_info": "updated_dynamic_test@example.com"
+}
+
+###
+
+### Archive the created client (soft delete)
+DELETE http://localhost:3000/api/clients/{{clientId}}
+
+###
+
+### Hard delete the created client
+DELETE http://localhost:3000/api/clients/hard/{{clientId}}
