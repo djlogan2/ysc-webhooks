@@ -51,7 +51,7 @@ function isdmarc(email) {
 
 function runBackgroundDMARC() {
     let running = false;
-    runEvery(1, async () => {
+    runEvery(parseInt(process.env.DMARC_MINUTES || "30"), async () => {
         if (running) return;
         running = true;
         try {
