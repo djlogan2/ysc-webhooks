@@ -25,7 +25,7 @@ function getAnalyticsScript() {
             }).catch(() => {});
           }
         } catch (error) {
-          // Silently ignore any errors
+          console.error('Analytics error:', error);
         }
       }
 
@@ -33,21 +33,45 @@ function getAnalyticsScript() {
         sendAnalytics({ eventType: 'pageview' });
       }
 
+      function trackEvent(category, action, label) {
+        sendAnalytics({
+          eventType: 'custom',
+          eventCategory: category,
+          eventAction: action,
+          eventLabel: label
+        });
+      }
+
+      function initClickTracking() {
+        document.addEventListener('click', function(event) {
+          const target = event.target.closest('a, button, input[type="submit"]'); // Capture links, buttons, and submit inputs
+          if (target) {
+            let category = 'Unknown';
+            let action = 'click';
+            let label = target.href || target.textContent || target.name;
+
+            if (target.tagName === 'A') {
+              category = 'Link';
+              action = target.href.endsWith('.pdf') ? 'PDF Click' : 'Link Click';
+            } else if (target.tagName === 'BUTTON') {
+              category = 'Button';
+            } else if (target.tagName === 'INPUT' && target.type === 'submit') {
+              category = 'Form Submit';
+            }
+
+            trackEvent(category, action, label);
+          }
+        });
+      }
+
+      // Initialize analytics tracking
       window.analyticsAPI = {
-        trackEvent: function(category, action, label, value) {
-          sendAnalytics({
-            eventType: 'custom',
-            eventCategory: category,
-            eventAction: action,
-            eventLabel: label,
-            eventValue: value
-          });
-        },
+        trackEvent: trackEvent,
         trackPageView: trackPageView
       };
 
-      // Initialize page view tracking
-      setTimeout(trackPageView, 0);
+      setTimeout(trackPageView, 0); // Track page view on load
+      initClickTracking(); // Track user interactions
     })();
   `;
 }
