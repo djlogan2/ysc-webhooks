@@ -1,6 +1,8 @@
 // background/dmarc.js
 const fflate = require('fflate');
 const xml2js = require('xml2js');
+const os = require('os');
+const dns = require('dns').promises;
 const dmarcService = require('../services/dmarcService');
 
 const {runEvery} = require('../services/scheduler');
@@ -104,8 +106,134 @@ function runBackgroundDMARC() {
         } catch (error) {
             console.error(error);
         }
+        await processDMARCRecords();
         running = false;
     });
+}
+
+// Function to resolve IPs for mail server hostnames
+async function resolveMailServerIPs(hostnames) {
+    const resolvedIPs = new Set();
+
+    for (const hostname of hostnames) {
+        try {
+            const addresses = await dns.resolve(hostname, 'A'); // Get IPv4 addresses
+            addresses.forEach(ip => resolvedIPs.add(ip));
+        } catch (error) {
+            console.error(`Failed to resolve IPs for ${hostname}:`, error.message);
+        }
+    }
+
+    return Array.from(resolvedIPs);
+}
+
+async function processDMARCRecords() {
+    try {
+        const hostname = os.hostname();
+        console.log(`Processing DMARC records on host: ${hostname}`);
+
+        // Fetch records that need attention
+        const records = await dmarcService.getNeedsAttention();
+
+        if (records.length === 0) {
+            console.log('No records require attention at this time.');
+            return;
+        }
+
+        // Get the current set of approved IPs dynamically from DNS lookups
+        const approvedHostnames = ['smtp.office365.com', 'outlook.office365.com']; // Replace with your exact hostnames
+        const approvedIPs = (await Promise.all(
+            approvedHostnames.map(async (hostname) => {
+                try {
+                    const addresses = await dns.resolve(hostname);
+                    return addresses;
+                } catch (err) {
+                    console.error(`Failed to resolve ${hostname}:`, err);
+                    return [];
+                }
+            })
+        )).flat();
+
+        console.log('Approved IPs:', approvedIPs);
+
+        // Aggregation variables
+        const manualReviewApprovedIPs = [];
+        const manualReviewUnapprovedIPs = new Set();
+        const potentialSpoofingIPs = new Set();
+        const recipientNotifications = new Map();
+
+        // Process each record
+        for (const record of records) {
+            const sourceIP = record.source_ip; // Assuming record includes source_ip field
+            const isApprovedIP = approvedIPs.includes(sourceIP);
+
+            if (isApprovedIP) {
+                // Collect manual review actions for approved IPs
+                if (!manualReviewApprovedIPs.includes(sourceIP)) {
+                    manualReviewApprovedIPs.push(sourceIP);
+                }
+            } else {
+                // If flagged for potential spoofing for your domain, prioritize as spoofing
+                if (record.domain === 'yoursoftwarecto.com') {
+                    potentialSpoofingIPs.add(sourceIP);
+                } else {
+                    // Otherwise, add to the general unapproved IPs review
+                    manualReviewUnapprovedIPs.add(sourceIP);
+
+                    // Aggregate recipient notifications
+                    if (!recipientNotifications.has(record.domain)) {
+                        recipientNotifications.set(record.domain, new Set());
+                    }
+                    recipientNotifications.get(record.domain).add(sourceIP);
+                }
+            }
+
+            // // Mark record as handled
+            // const success = await dmarcService.markAsHandled(record.id);
+            // if (success) {
+            //     console.log(`Record ID ${record.id} marked as handled.`);
+            // } else {
+            //     console.error(`Failed to mark record ID ${record.id} as handled.`);
+            // }
+        }
+
+        // Output aggregated actions
+        if (manualReviewApprovedIPs.length > 0) {
+            console.warn(
+                `Manual Action: Verify email headers and check for anomalies for the following approved IPs: ${manualReviewApprovedIPs.join(
+                    ', '
+                )}. Ensure no unauthorized use or unusual patterns.`
+            );
+        }
+
+        if (manualReviewUnapprovedIPs.size > 0) {
+            console.warn(
+                `Manual Action: Review the following unapproved IPs for potential abuse or misconfiguration: ${[
+                    ...manualReviewUnapprovedIPs,
+                ].join(', ')}.`
+            );
+        }
+
+        if (potentialSpoofingIPs.size > 0) {
+            console.warn(
+                `ALERT: Potential spoofing detected for your domain from the following IPs: ${[
+                    ...potentialSpoofingIPs,
+                ].join(', ')}.`
+            );
+            console.log(`Action: Contact your email provider and report the suspicious activity.`);
+        }
+
+        if (recipientNotifications.size > 0) {
+            console.log('Manual Action: Notify the following recipients to be cautious of emails from the listed IPs:');
+            for (const [domain, ips] of recipientNotifications.entries()) {
+                console.log(`- ${domain}: ${[...ips].join(', ')}`);
+            }
+        }
+
+        console.log('DMARC processing completed.');
+    } catch (error) {
+        console.error('Error during DMARC processing:', error);
+    }
 }
 
 module.exports = {runBackgroundDMARC};
