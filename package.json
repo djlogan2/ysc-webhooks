@@ -9,7 +9,7 @@
   "private": true,
   "dependencies": {
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "fflate": "^0.8.2",
     "isomorphic-fetch": "^3.0.0",
     "mysql2": "^3.11.5",
