@@ -44,17 +44,20 @@ function getAnalyticsScript() {
 
       function initClickTracking() {
         document.addEventListener('click', function(event) {
-          const target = event.target.closest('a, button, input[type="submit"]'); // Capture links, buttons, and submit inputs
+          const target = event.target.closest('a, button, input[type="submit"], iframe'); // Include iframe clicks
           if (target) {
             let category = 'Unknown';
             let action = 'click';
-            let label = target.href || target.textContent || target.name;
+            let label = target.href || target.textContent || target.name || target.src;
 
             if (target.tagName === 'A') {
               category = 'Link';
               action = target.href.endsWith('.pdf') ? 'PDF Click' : 'Link Click';
             } else if (target.tagName === 'BUTTON') {
               category = 'Button';
+            } else if (target.tagName === 'IFRAME') {
+              category = 'Iframe';
+              label = target.src; // Track iframe source
             } else if (target.tagName === 'INPUT' && target.type === 'submit') {
               category = 'Form Submit';
             }
