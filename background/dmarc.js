@@ -6,7 +6,7 @@ const dns = require('dns').promises;
 const dmarcService = require('../services/dmarcService');
 
 const {runEvery} = require('../services/scheduler');
-const {getInbox, getAttachmentData, deleteEmail} = require("../services/emailService");
+const {getInbox, getAttachmentData, deleteEmail, sendEmail} = require("../services/emailService");
 
 function uint8ArrayToString(uint8Array) {
     return new TextDecoder('utf-8').decode(uint8Array);
@@ -45,6 +45,8 @@ function unarchiveBuffer(base64data, filename) {
 }
 
 function isdmarc(email) {
+    if(email.from.emailAddress.address === 'david@yoursoftwarecto.com')
+        return false;
     return email.from.emailAddress.name.toLowerCase().includes('dmarc') ||
         email.from.emailAddress.address.toLowerCase().includes('dmarc') ||
         email.subject.toLowerCase().includes('dmarc') ||
@@ -188,46 +190,49 @@ async function processDMARCRecords() {
                 }
             }
 
-            // // Mark record as handled
-            // const success = await dmarcService.markAsHandled(record.id);
-            // if (success) {
-            //     console.log(`Record ID ${record.id} marked as handled.`);
-            // } else {
-            //     console.error(`Failed to mark record ID ${record.id} as handled.`);
-            // }
+            // Mark record as handled
+            const success = await dmarcService.markAsHandled(record.id);
+            if (success) {
+                console.log(`Record ID ${record.id} marked as handled.`);
+            } else {
+                console.error(`Failed to mark record ID ${record.id} as handled.`);
+            }
         }
 
         // Output aggregated actions
+        let body = '';
         if (manualReviewApprovedIPs.length > 0) {
-            console.warn(
-                `Manual Action: Verify email headers and check for anomalies for the following approved IPs: ${manualReviewApprovedIPs.join(
+            body +=
+                `<p>Manual Action: Verify email headers and check for anomalies for the following approved IPs: ${manualReviewApprovedIPs.join(
                     ', '
-                )}. Ensure no unauthorized use or unusual patterns.`
-            );
+                )}. Ensure no unauthorized use or unusual patterns.</p>`;
         }
 
         if (manualReviewUnapprovedIPs.size > 0) {
-            console.warn(
-                `Manual Action: Review the following unapproved IPs for potential abuse or misconfiguration: ${[
+            body +=
+                `<p>Manual Action: Review the following unapproved IPs for potential abuse or misconfiguration: ${[
                     ...manualReviewUnapprovedIPs,
-                ].join(', ')}.`
-            );
+                ].join(', ')}.</p>`;
         }
 
         if (potentialSpoofingIPs.size > 0) {
-            console.warn(
-                `ALERT: Potential spoofing detected for your domain from the following IPs: ${[
+            body +=
+                `<p>ALERT: Potential spoofing detected for your domain from the following IPs: ${[
                     ...potentialSpoofingIPs,
-                ].join(', ')}.`
-            );
-            console.log(`Action: Contact your email provider and report the suspicious activity.`);
+                ].join(', ')}.</p>`;
+            body += `<p>Action: Contact your email provider and report the suspicious activity.</p>`;
         }
 
         if (recipientNotifications.size > 0) {
-            console.log('Manual Action: Notify the following recipients to be cautious of emails from the listed IPs:');
+            body += '<p>Manual Action: Notify the following recipients to be cautious of emails from the listed IPs:';
             for (const [domain, ips] of recipientNotifications.entries()) {
-                console.log(`- ${domain}: ${[...ips].join(', ')}`);
+                body += `- ${domain}: ${[...ips].join(', ')}`;
             }
+            body += `</p>`;
+        }
+
+        if(body.length) {
+            await sendEmail('david@yoursoftwarecto.com', 'DMARC actions', '<html>' + body + '</html>');
         }
 
         console.log('DMARC processing completed.');
