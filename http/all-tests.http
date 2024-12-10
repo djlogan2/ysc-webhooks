@@ -1,0 +1,27 @@
+# Run Clients Tests
+@include ./clients.http
+
+###
+
+# Run Contexts Tests
+@include ./context.http
+
+###
+
+# Run Notes Tests
+@include ./notes.http
+
+###
+
+# Run Priorities Tests
+@include ./priorities.http
+
+###
+
+# Run Tags Tests
+@include ./tags.http
+
+###
+
+# Run Tasks Tests
+@include ./tasks.http

@@ -1,4 +1,4 @@
-const clientService = require('../services/clientService');
+const clientService = require('../../services/taskmanager/clientService');
 
 exports.getAllClients = async (req, res) => {
     try {

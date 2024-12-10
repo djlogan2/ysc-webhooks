@@ -1,0 +1,178 @@
+### Step 1: Create a client
+POST http://localhost:3000/api/clients
+Content-Type: application/json
+
+{
+  "client_name": "Task Testing Client",
+  "contact_info": "tasktesting@example.com"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("clientId", responseBody.client_id);
+%}
+
+###
+
+### Step 2: Create a project for the client
+POST http://localhost:3000/api/projects
+Content-Type: application/json
+
+{
+  "project_name": "Task Testing Project",
+  "description": "Project for task testing",
+  "client_id": {{clientId}}
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("projectId", responseBody.project_id);
+%}
+
+###
+
+### Step 3: Create a context
+POST http://localhost:3000/api/contexts
+Content-Type: application/json
+
+{
+  "context_name": "Work"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("contextId", responseBody.context_id);
+%}
+
+###
+
+### Step 4: Create a priority
+POST http://localhost:3000/api/priorities
+Content-Type: application/json
+
+{
+  "priority_name": "High"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("priorityId", responseBody.priority_id);
+%}
+
+###
+
+### Step 5: Create a task
+POST http://localhost:3000/api/tasks
+Content-Type: application/json
+
+{
+  "task_name": "Test Task",
+  "description": "A sample task for testing purposes",
+  "status": "Next Action",
+  "context_id": {{contextId}},
+  "priority_id": {{priorityId}},
+  "project_id": {{projectId}},
+  "schedule_expression": "every Monday at 9am"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("taskId", responseBody.task_id);
+%}
+
+###
+
+### Step 6: Get all tasks (default behavior with sub-data)
+GET http://localhost:3000/api/tasks
+
+###
+
+### Step 7: Get a specific task
+GET http://localhost:3000/api/tasks/{{taskId}}
+
+###
+
+### Step 8: Get tasks with specific fields (valid cases)
+GET http://localhost:3000/api/tasks?fields=notes,context
+
+GET http://localhost:3000/api/tasks?fields=priority,project
+
+###
+
+### Step 9: Get tasks with invalid fields (error case)
+GET http://localhost:3000/api/tasks?fields=invalidField
+
+###
+
+### Step 10: Update the task
+PUT http://localhost:3000/api/tasks/{{taskId}}
+Content-Type: application/json
+
+{
+  "task_name": "Updated Test Task",
+  "description": "This task has been updated",
+  "status": "Waiting For",
+  "context_id": {{contextId}},
+  "priority_id": {{priorityId}}
+}
+
+###
+
+### Step 11: Complete the task (trigger recurring logic)
+POST http://localhost:3000/api/tasks/{{taskId}}/complete
+
+###
+
+### Step 12: Fetch tasks after recurring logic
+GET http://localhost:3000/api/tasks
+
+###
+
+### Step 13: Create a note for the task
+POST http://localhost:3000/api/notes
+Content-Type: application/json
+
+{
+  "task_id": {{taskId}},
+  "note_text": "This is a note for the task"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("noteId", responseBody.note_id);
+%}
+
+###
+
+### Step 14: Get all notes for the task
+GET http://localhost:3000/api/notes/task/{{taskId}}
+
+###
+
+### Step 15: Update the note
+PUT http://localhost:3000/api/notes/{{noteId}}
+Content-Type: application/json
+
+{
+  "note_text": "This note has been updated"
+}
+
+###
+
+### Step 16: Delete the note
+DELETE http://localhost:3000/api/notes/{{noteId}}
+
+###
+
+### Step 17: Delete the task
+DELETE http://localhost:3000/api/tasks/{{taskId}}
+
+###
+
+### Step 18: Delete the project
+DELETE http://localhost:3000/api/projects/{{projectId}}
+
+###
+
+### Step 19: Delete the client
+DELETE http://localhost:3000/api/clients/{{clientId}}

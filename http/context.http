@@ -1,0 +1,32 @@
+### Create a new context
+POST http://localhost:3000/api/contexts
+Content-Type: application/json
+
+{
+  "context_name": "Work"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("contextId", responseBody.context_id);
+%}
+
+###
+
+### Fetch all contexts
+GET http://localhost:3000/api/contexts
+
+###
+
+### Update the created context
+PUT http://localhost:3000/api/contexts/{{contextId}}
+Content-Type: application/json
+
+{
+  "context_name": "Updated Work Context"
+}
+
+###
+
+### Delete the created context (after ensuring no dependent tasks exist)
+DELETE http://localhost:3000/api/contexts/{{contextId}}

@@ -3,9 +3,13 @@ const emailRoutes = require('./routes/emailRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const dmarcRoutes = require('./routes/dmarcRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
-const clientRoutes = require('./routes/clientRoutes');
-// const projectRoutes = require('./routes/projectRoutes');
-// const taskRoutes = require('./routes/taskRoutes');
+const clientRoutes = require('./routes/taskmanager/clientRoutes');
+const projectRoutes = require('./routes/taskmanager/projectRoutes');
+const contextRoutes = require('./routes/taskmanager/contextRoutes');
+const priorityRoutes = require('./routes/taskmanager/priorityRoutes');
+const tagRoutes = require('./routes/taskmanager/tagRoutes');
+const noteRoutes = require('./routes/taskmanager/noteRoutes');
+const taskRoutes = require('./routes/taskmanager/taskRoutes');
 // const backgroundRoutes = require('./routes/backgroundRoutes');
 const {getAnalyticsScript} = require('./services/getAnalyticsScript');
 const { runBackgroundDMARC } = require('./background/dmarc');
@@ -23,8 +27,12 @@ app.use('/api/analytics', analyticsRoutes);
 
 // New routes
 app.use('/api/clients', clientRoutes);
-// app.use('/api/projects', projectRoutes);
-// app.use('/api/tasks', taskRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/contexts', contextRoutes);
+app.use('/api/priorities', priorityRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api/notes', noteRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Analytics route
 app.get('/analytics.js', (req, res) => {

@@ -12,8 +12,13 @@
     "express": "^4.21.2",
     "fflate": "^0.8.2",
     "isomorphic-fetch": "^3.0.0",
+    "later": "^1.2.0",
     "mysql2": "^3.11.5",
     "node-cron": "^3.0.3",
     "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
   }
 }

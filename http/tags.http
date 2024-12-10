@@ -1,0 +1,36 @@
+### Create a task for the tag
+POST http://localhost:3000/api/tasks
+Content-Type: application/json
+
+{
+  "task_name": "Task for Tags",
+  "description": "This task is used for tag testing",
+  "status": "Next Action",
+  "context_id": 1,
+  "priority_id": 1
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("taskId", responseBody.task_id);
+%}
+
+###
+
+### Create a tag
+POST http://localhost:3000/api/tags
+Content-Type: application/json
+
+{
+  "tag_name": "Urgent"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("tagId", responseBody.tag_id);
+%}
+
+###
+
+### Delete the tag
+DELETE http://localhost:3000/api/tags/{{tagId}}

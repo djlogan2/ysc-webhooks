@@ -1,0 +1,45 @@
+### Create a new project
+POST http://localhost:3000/api/projects
+Content-Type: application/json
+
+{
+  "project_name": "Test Project",
+  "description": "A sample project for testing purposes",
+  "status": "Active",
+  "start_date": "2024-12-10",
+  "due_date": "2024-12-20"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("projectId", responseBody.project_id);
+%}
+
+###
+
+### Fetch all projects
+GET http://localhost:3000/api/projects
+
+###
+
+### Fetch a single project by ID
+GET http://localhost:3000/api/projects/{{projectId}}
+
+###
+
+### Update the project
+PUT http://localhost:3000/api/projects/{{projectId}}
+Content-Type: application/json
+
+{
+  "project_name": "Updated Test Project",
+  "description": "This project has been updated",
+  "status": "On Hold",
+  "start_date": "2024-12-15",
+  "due_date": "2024-12-25"
+}
+
+###
+
+### Delete the project
+DELETE http://localhost:3000/api/projects/{{projectId}}

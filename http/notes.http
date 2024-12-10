@@ -1,0 +1,141 @@
+### Step 1: Create a context
+POST http://localhost:3000/api/contexts
+Content-Type: application/json
+
+{
+  "context_name": "Testing Context"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("contextId", responseBody.context_id);
+%}
+
+###
+
+### Step 2: Create a priority
+POST http://localhost:3000/api/priorities
+Content-Type: application/json
+
+{
+  "priority_name": "High Priority"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("priorityId", responseBody.priority_id);
+%}
+
+###
+
+### Step 3: Create a client
+POST http://localhost:3000/api/clients
+Content-Type: application/json
+
+{
+  "client_name": "Test Client for Notes",
+  "contact_info": "clientfornotes@example.com"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("clientId", responseBody.client_id);
+%}
+
+###
+
+### Step 4: Create a project for the client
+POST http://localhost:3000/api/projects
+Content-Type: application/json
+
+{
+  "project_name": "Test Project for Notes",
+  "description": "This project is for note testing",
+  "client_id": {{clientId}}
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("projectId", responseBody.project_id);
+%}
+
+###
+
+### Step 5: Create a task for the project
+POST http://localhost:3000/api/tasks
+Content-Type: application/json
+
+{
+  "task_name": "Task for Notes",
+  "description": "This task is used for note testing",
+  "status": "Next Action",
+  "context_id": {{contextId}},
+  "priority_id": {{priorityId}},
+  "project_id": {{projectId}}
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("taskId", responseBody.task_id);
+%}
+
+###
+
+### Step 6: Create a note for the task
+POST http://localhost:3000/api/notes
+Content-Type: application/json
+
+{
+  "task_id": {{taskId}},
+  "note_text": "This is a note for the task"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("noteId", responseBody.note_id);
+%}
+
+###
+
+### Step 7: Fetch all notes for the task
+GET http://localhost:3000/api/notes/task/{{taskId}}
+
+###
+
+### Step 8: Update the note
+PUT http://localhost:3000/api/notes/{{noteId}}
+Content-Type: application/json
+
+{
+  "note_text": "This note has been updated"
+}
+
+###
+
+### Step 9: Delete the note
+DELETE http://localhost:3000/api/notes/{{noteId}}
+
+###
+
+### Step 10: Delete the task
+DELETE http://localhost:3000/api/tasks/{{taskId}}
+
+###
+
+### Step 11: Delete the project
+DELETE http://localhost:3000/api/projects/{{projectId}}
+
+###
+
+### Step 12: Delete the client
+DELETE http://localhost:3000/api/clients/{{clientId}}
+
+###
+
+### Step 13: Delete the priority
+DELETE http://localhost:3000/api/priorities/{{priorityId}}
+
+###
+
+### Step 14: Delete the context
+DELETE http://localhost:3000/api/contexts/{{contextId}}

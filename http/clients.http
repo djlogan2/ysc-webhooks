@@ -8,7 +8,6 @@ Content-Type: application/json
 }
 
 > {%
-    // Ensure response.body is parsed correctly
     let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
     client.global.set("clientId", responseBody.client_id);
 %}

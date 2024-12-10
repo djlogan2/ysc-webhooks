@@ -1,0 +1,32 @@
+### Create a new priority
+POST http://localhost:3000/api/priorities
+Content-Type: application/json
+
+{
+  "priority_name": "High"
+}
+
+> {%
+    let responseBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    client.global.set("priorityId", responseBody.priority_id);
+%}
+
+###
+
+### Fetch all priorities
+GET http://localhost:3000/api/priorities
+
+###
+
+### Update the created priority
+PUT http://localhost:3000/api/priorities/{{priorityId}}
+Content-Type: application/json
+
+{
+  "priority_name": "Updated High Priority"
+}
+
+###
+
+### Delete the created priority (after ensuring no dependent tasks exist)
+DELETE http://localhost:3000/api/priorities/{{priorityId}}
