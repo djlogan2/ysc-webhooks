@@ -1,4 +1,4 @@
-const calendarService = require('../services/calendarService');
+import calendarService from '../services/calendarService';
 
 exports.readCalendar = async (req, res) => {
     try {

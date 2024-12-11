@@ -1,7 +1,7 @@
-// const taskService = require('../services/taskService');
-// const notificationService = require('../services/notificationService');
-const calendarService = require('../services/calendarService');
-const {runEvery} = require("../services/scheduler");
+// import taskService from '../services/taskService';
+// import notificationService from '../services/notificationService';
+import calendarService from '../services/calendarService';
+import { runEvery } from '../services/scheduler';
 
 async function runBackgroundAssistant() {
     runEvery(parseInt(process.env.ASSISTANT_MINUTES || "30"), async () => {

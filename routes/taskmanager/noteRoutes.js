@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const noteController = require('../../controllers/taskmanager/noteController');
+import noteController from '../../controllers/taskmanager/noteController';
 
 router.get('/task/:taskId', noteController.getNotesByTaskId);
 router.post('/', noteController.createNote);
 router.put('/:id', noteController.updateNote);
 router.delete('/:id', noteController.deleteNote);
 
-module.exports = router;
+export default router;

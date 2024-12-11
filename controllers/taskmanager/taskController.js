@@ -1,4 +1,4 @@
-const taskService = require('../../services/taskmanager/taskService');
+import taskService from '../../services/taskmanager/taskService';
 
 exports.getAllTasks = async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-const pool = require('../db');
+import pool from '../db';
 
 // Create a project
 exports.createProject = async (projectData) => {

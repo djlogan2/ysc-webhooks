@@ -1,4 +1,4 @@
-const pool = require('../db');
+import pool from '../db';
 
 exports.getNotesByTaskId = async (taskId) => {
     const [rows] = await pool.query(

@@ -1,4 +1,4 @@
-const pool = require('../db');
+import pool from '../db';
 
 exports.getAllContexts = async () => {
     const [rows] = await pool.query('SELECT * FROM dj.taskmanager_contexts');

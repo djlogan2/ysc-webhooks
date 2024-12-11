@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const clientController = require('../../controllers/taskmanager/clientController');
+import clientController from '../../controllers/taskmanager/clientController';
 
 // Define routes
 router.get('/', clientController.getAllClients);
@@ -10,4 +10,4 @@ router.put('/:id', clientController.updateClient);
 router.delete('/:id', clientController.archiveClient);
 router.delete('/hard/:id', clientController.deleteClient);
 
-module.exports = router;
+export default router;

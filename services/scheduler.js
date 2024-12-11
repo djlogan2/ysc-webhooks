@@ -1,5 +1,5 @@
 // services/scheduler.js
-const cron = require('node-cron');
+import cron from 'node-cron';
 
 function runEvery(minutes, task) {
     const cronExpression = `*/${minutes} * * * *`;

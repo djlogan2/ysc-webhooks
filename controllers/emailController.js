@@ -1,4 +1,4 @@
-const emailService = require('../services/emailService');
+import emailService from '../services/emailService';
 
 exports.readEmails = async (req, res) => {
     try {

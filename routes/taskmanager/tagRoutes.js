@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const tagController = require('../../controllers/taskmanager/tagController');
+import tagController from '../../controllers/taskmanager/tagController';
 
 router.get('/', tagController.getAllTags);
 router.post('/', tagController.createTag);
@@ -11,4 +11,4 @@ router.delete('/:id', tagController.deleteTag);
 router.post('/tasks/:taskId', tagController.addTagToTask);
 router.delete('/tasks/:taskId/:tagId', tagController.removeTagFromTask);
 
-module.exports = router;
+export default router;

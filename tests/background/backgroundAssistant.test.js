@@ -1,4 +1,4 @@
-const backgroundAssistant = require('../background/backgroundAssistant');
+import backgroundAssistant from '../background/backgroundAssistant';
 
 describe('Background Assistant', () => {
     test.todo('should run tasks at the specified intervals');

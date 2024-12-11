@@ -1,4 +1,4 @@
-const pool = require('../db'); // Import MySQL pool
+import pool from '../db'; // Import MySQL pool
 
 exports.getAllClients = async () => {
     const [rows] = await pool.query('SELECT * FROM dj.taskmanager_clients WHERE archived IS NULL OR archived = 0');

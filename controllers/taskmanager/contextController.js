@@ -1,4 +1,4 @@
-const contextService = require('../../services/taskmanager/contextService');
+import contextService from '../../services/taskmanager/contextService';
 
 exports.getAllContexts = async (req, res) => {
     try {

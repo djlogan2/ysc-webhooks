@@ -1,5 +1,5 @@
-const express = require('express');
-const { saveAnalytics, getAnalytics } = require('../controllers/analyticsController');
+import express from 'express';
+import {  saveAnalytics, getAnalytics  } from '../controllers/analyticsController';
 
 const router = express.Router();
 
@@ -9,4 +9,4 @@ router.post('/', saveAnalytics);
 // Route to query analytics data
 router.get('/', getAnalytics);
 
-module.exports = router;
+export default router;

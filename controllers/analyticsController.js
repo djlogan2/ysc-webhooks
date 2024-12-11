@@ -1,4 +1,4 @@
-const { saveAnalyticsData, queryAnalyticsData } = require('../services/analyticsService');
+import {  saveAnalyticsData, queryAnalyticsData  } from '../services/analyticsService';
 
 // Controller to save analytics data
 async function saveAnalytics(req, res) {

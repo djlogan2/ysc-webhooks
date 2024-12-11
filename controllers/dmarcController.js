@@ -1,4 +1,4 @@
-const dmarcService = require('../services/dmarcService');
+import dmarcService from '../services/dmarcService';
 
 class DMARCController {
     async writeDMARCRecord(req, res) {

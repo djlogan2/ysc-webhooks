@@ -1,4 +1,4 @@
-const projectService = require('../../services/taskmanager/projectService');
+import projectService from '../../services/taskmanager/projectService';
 
 // Create a project
 exports.createProject = async (req, res) => {

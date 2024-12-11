@@ -1,4 +1,4 @@
-const tagService = require('../../services/taskmanager/tagService');
+import tagService from '../../services/taskmanager/tagService';
 
 exports.getAllTags = async (req, res) => {
     try {

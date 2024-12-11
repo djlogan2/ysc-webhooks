@@ -1,8 +1,8 @@
-const { parseStringPromise } = require('xml2js');
-const { unzipSync } = require('zlib');
-const fs = require('fs');
-const path = require('path');
-const { createTask } = require('../services/taskmanager/taskService'); // Assuming taskService is already set up
+import {  parseStringPromise  } from 'xml2js';
+import {  unzipSync  } from 'zlib';
+import fs from 'fs';
+import path from 'path';
+import {  createTask  } from '../services/taskmanager/taskService'; // Assuming taskService is already set up
 
 /**
  * Filters emails to identify DMARC reports.

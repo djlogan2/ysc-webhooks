@@ -1,5 +1,5 @@
-const { Client } = require('@microsoft/microsoft-graph-client');
-const emailConfig = require('../config/emailConfig');
+import {  Client  } from '@microsoft/microsoft-graph-client';
+import emailConfig from '../config/emailConfig';
 require('isomorphic-fetch');
 
 // Initialize the Graph client

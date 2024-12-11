@@ -1,4 +1,4 @@
-const clientService = require('../../services/taskmanager/clientService');
+import clientService from '../../services/taskmanager/clientService';
 
 exports.getAllClients = async (req, res) => {
     try {

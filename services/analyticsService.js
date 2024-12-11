@@ -1,4 +1,4 @@
-const db = require('./db'); // Assuming you have a db utility for queries
+import db from './db'; // Assuming you have a db utility for queries
 
 // Service to save analytics data
 async function saveAnalyticsData(data) {

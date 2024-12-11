@@ -1,5 +1,5 @@
-const express = require('express');
-const dmarcController = require('../controllers/dmarcController');
+import express from 'express';
+import dmarcController from '../controllers/dmarcController';
 
 const router = express.Router();
 
@@ -8,4 +8,4 @@ router.get('/readall', dmarcController.readAllRecords);
 router.get('/needsattention', dmarcController.getNeedsAttention);
 router.put('/handled/:id', dmarcController.markAsHandled);
 
-module.exports = router;
+export default router;

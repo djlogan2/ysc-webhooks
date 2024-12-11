@@ -1,4 +1,4 @@
-const noteService = require('../../services/taskmanager/noteService');
+import noteService from '../../services/taskmanager/noteService';
 
 exports.getNotesByTaskId = async (req, res) => {
     try {

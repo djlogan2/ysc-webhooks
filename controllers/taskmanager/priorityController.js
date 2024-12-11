@@ -1,4 +1,4 @@
-const priorityService = require('../../services/taskmanager/priorityService');
+import priorityService from '../../services/taskmanager/priorityService';
 
 exports.getAllPriorities = async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-const pool = require('../db');
+import pool from '../db';
 
 exports.getAllTags = async () => {
     const [rows] = await pool.query('SELECT * FROM dj.taskmanager_tags');

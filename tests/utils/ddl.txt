@@ -84,6 +84,7 @@ create table taskmanager_projects
     due_date     date                                                              null,
     created_at   timestamp                               default CURRENT_TIMESTAMP null,
     updated_at   timestamp                               default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+    archived     tinyint(1)                              default 0                 not null,
     constraint taskmanager_projects_ibfk_1
         foreign key (client_id) references taskmanager_clients (client_id)
 );
@@ -186,5 +187,4 @@ create index priority_id
 
 create index project_id
     on taskmanager_tasks (project_id);
-
 

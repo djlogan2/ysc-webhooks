@@ -1,5 +1,5 @@
-const mysql = require('mysql2/promise');
-const dbConfig = require('../config/dbConfig');
+import mysql from 'mysql2/promise';
+import dbConfig from '../config/dbConfig';
 const config = {
     ...dbConfig,
     waitForConnections: true,
@@ -8,4 +8,4 @@ const config = {
 }
 const pool = mysql.createPool(config);
 
-module.exports = pool;
+export default pool;

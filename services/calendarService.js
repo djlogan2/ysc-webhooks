@@ -1,4 +1,4 @@
-const calendarConfig = require('../config/calendarConfig');
+import calendarConfig from '../config/calendarConfig';
 
 exports.getCalendar = async () => {
     // Logic to fetch calendar data

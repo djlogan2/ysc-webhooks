@@ -1,5 +1,5 @@
-const express = require('express');
-const emailController = require('../controllers/emailController');
+import express from 'express';
+import emailController from '../controllers/emailController';
 
 const router = express.Router();
 
@@ -9,4 +9,4 @@ router.post('/send', emailController.sendEmail);
 router.delete('/:id', emailController.deleteEmail);
 router.patch('/:id/archive', emailController.archiveEmail);
 
-module.exports = router;
+export default router;
