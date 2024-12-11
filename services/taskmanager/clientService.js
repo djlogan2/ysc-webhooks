@@ -26,6 +26,9 @@ exports.updateClient = async (id, data) => {
 };
 
 exports.archiveClient = async (id) => {
+    const count = await pool.query('SELECT COUNT(*) FROM dj.taskmanager_projects WHERE client_id = ? AND (archived IS NULL OR archived = 0)', [id]);
+    if(!!count?.[0]?.['COUNT(*)'])
+        throw Error('Cannot archive a client with active projects');
     const [result] = await pool.query('UPDATE dj.taskmanager_clients SET archived = 1 WHERE client_id = ? AND (archived IS NULL OR archived = 0)', [id]);
     return result.affectedRows > 0;
 };
