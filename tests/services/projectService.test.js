@@ -21,6 +21,7 @@ describe('Project Service Tests', () => {
         context = await contextService.createContext({
             context_name: 'Default Context'
         });
+        dbMock.resetDatabase()
     });
 
     afterEach(() => {
@@ -160,9 +161,25 @@ describe('Project Service Tests', () => {
         });
 
         it('should retrieve all unarchived projects', async () => {
-            const result = await projectService.getProjects();
+
+            // Create 7 unarchived and 3 archived projects
+            for (let i = 1; i <= 10; i++) {
+                const client = await clientService.createClient({
+                    client_name: `Test Client ${i}`,
+                    contact_info: 'test@example.com'
+                });
+                const project = await projectService.createProject({
+                    project_name: `Project ${i}`,
+                    client_id: client.client_id
+                });
+                if(i > 7)
+                    await projectService.updateProject({project_id: project.project_id, archived: 1});
+            }
+
+            const result = await projectService.getAllProjects();
 
             expect(result).to.be.an('array');
+            expect(result).to.have.lengthOf(7);
             expect(result.every((project) => project.archived === 0)).to.be.true;
         });
     });

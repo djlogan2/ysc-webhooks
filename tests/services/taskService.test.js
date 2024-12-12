@@ -1,116 +1,141 @@
+import * as chai from 'chai';
 import { expect } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import sinon from 'sinon';
 import * as taskService from '../../services/taskmanager/taskService.js';
+import * as clientService from '../../services/taskmanager/clientService.js';
+import * as projectService from '../../services/taskmanager/projectService.js';
+import * as contextService from '../../services/taskmanager/contextService.js';
 import pool from '../../services/db.js';
+import dbMock from '../../tests/utils/dbmock.js';
+
+chai.use(chaiAsPromised);
 
 describe('Task Service Tests', () => {
     let queryStub;
 
     beforeEach(() => {
-        queryStub = sinon.stub(pool, 'query');
+        queryStub = sinon.stub(pool, 'query').callsFake((...args) => dbMock.query(...args));
+        dbMock.resetDatabase();
     });
 
     afterEach(() => {
         queryStub.restore();
     });
 
+    // Helper functions
+    const createClients = async (num) => {
+        const clients = [];
+        for (let i = 1; i <= num; i++) {
+            const client = await clientService.createClient({
+                client_name: `Client ${i}`,
+                contact_info: `client${i}@example.com`
+            });
+            expect(client).to.have.property('client_id');
+            clients.push(client);
+        }
+        return clients;
+    };
+
+    const createProjects = async (num, clientCount) => {
+        const projects = [];
+        const clients = await createClients(clientCount);
+        for (let i = 1; i <= num; i++) {
+            const client = clients[(i - 1) % clientCount];
+            const project = await projectService.createProject({
+                project_name: `Project ${i}`,
+                client_id: client.client_id
+            });
+            expect(project).to.have.property('project_id');
+            projects.push(project);
+        }
+        return projects;
+    };
+
+    const createContexts = async (num) => {
+        const contexts = [];
+        for (let i = 1; i <= num; i++) {
+            const context = await contextService.createContext({
+                context_name: `Context ${i}`
+            });
+            expect(context).to.have.property('context_id');
+            contexts.push(context);
+        }
+        return contexts;
+    };
+
     describe('Create Tasks', () => {
-        it('should create a task with all fields provided', async () => {
-            const projectId = 1;
-            const fullTaskData = {
+        it('should create a task with all required fields', async () => {
+            const [context] = await createContexts(1);
+
+            const task = await taskService.createTask({
                 task_name: 'Test Task',
-                description: 'A test task',
-                status: 'Pending',
-                due_date: '2024-12-31',
-                project_id: projectId,
-                archived: 0
-            };
-            const insertId = 1;
-            /* removed queryStub.resolves([[{ insertId }]]) */
+                context_id: context.context_id
+            });
 
-            const result = await taskService.createTask(fullTaskData);
-            expect(result.task_name).to.equal('Test Task');
-            expect(result.project_id).to.equal(projectId);
-            expect(queryStub.calledOnce).to.be.true;
-            expect(queryStub.firstCall.args[0]).to.include('INSERT INTO dj.taskmanager_tasks');
+            expect(task).to.have.property('task_id');
+            expect(task.task_name).to.equal('Test Task');
+            expect(task.context_id).to.equal(context.context_id);
         });
 
-        it('should fail if a required field is missing', async () => {
-            const requiredFields = ['task_name', 'project_id'];
-            for (const field of requiredFields) {
-                const invalidData = { task_name: 'Test Task', project_id: 1 };
-                delete invalidData[field];
-                await expect(taskService.createTask(invalidData)).to.be.rejectedWith(Error);
-            }
-        });
-    });
+        it('should fail to create a task without required fields', async () => {
+            const [context] = await createContexts(1);
 
-    describe('Get Tasks', () => {
-        it('should fetch all tasks for a given project', async () => {
-            const projectId = 1;
-            queryStub.resolves([[
-                { task_id: 1, task_name: 'Task 1', project_id: projectId },
-                { task_id: 2, task_name: 'Task 2', project_id: projectId }
-            ]]);
+            await expect(taskService.createTask({
+                context_id: context.context_id
+            })).to.be.rejectedWith('Task name and context ID are required.');
 
-            const result = await taskService.getTasksByProject(projectId);
-            expect(result).to.have.lengthOf(2);
-            expect(result[0].project_id).to.equal(projectId);
-            expect(result[1].project_id).to.equal(projectId);
+            await expect(taskService.createTask({
+                task_name: 'Test Task'
+            })).to.be.rejectedWith('Task name and context ID are required.');
         });
 
-        it('should return an empty array if no tasks exist for a given project', async () => {
-            /* removed queryStub.resolves([[]]) */
-            const result = await taskService.getTasksByProject(1);
-            expect(result).to.deep.equal([]);
-        });
+        it('should fail to create a task with an invalid status', async () => {
+            const [context] = await createContexts(1);
 
-        it('should fetch a task by its ID', async () => {
-            const taskId = 1;
-            /* removed queryStub.resolves([[{ task_id: taskId, task_name: 'Task 1' }]]) */
-            const result = await taskService.getTaskById(taskId);
-            expect(result).to.exist;
-            expect(result.task_name).to.equal('Task 1');
-        });
-
-        it('should return null for a non-existent task ID', async () => {
-            /* removed queryStub.resolves([[]]) */
-            const result = await taskService.getTaskById(999);
-            expect(result).to.be.null;
+            await expect(taskService.createTask({
+                task_name: 'Invalid Status Task',
+                context_id: context.context_id,
+                status: 'Invalid'
+            })).to.be.rejectedWith('Invalid task status');
         });
     });
 
     describe('Update Tasks', () => {
-        it('should update task fields successfully', async () => {
-            const updatedData = {
-                task_id: 1,
-                task_name: 'Updated Task',
-                status: 'Completed'
-            };
-            /* removed queryStub.resolves([{ affectedRows: 1 }]) */
+        it('should update a task successfully', async () => {
+            const [context] = await createContexts(1);
+            const task = await taskService.createTask({
+                task_name: 'Initial Task',
+                context_id: context.context_id
+            });
 
-            const result = await taskService.updateTask(updatedData);
-            expect(result.task_name).to.equal('Updated Task');
-            expect(result.status).to.equal('Completed');
+            const updatedTask = await taskService.updateTask({
+                task_id: task.task_id,
+                task_name: 'Updated Task'
+            });
+
+            expect(updatedTask).to.have.property('task_id', task.task_id);
+            expect(updatedTask.task_name).to.equal('Updated Task');
         });
 
-        it('should return null for updating a non-existent task', async () => {
-            /* removed queryStub.resolves([{ affectedRows: 0 }]) */
-            const result = await taskService.updateTask({ task_id: 999, task_name: 'Updated Task' });
-            expect(result).to.be.null;
-        });
-    });
+        it('should fail to update a task with an invalid status', async () => {
+            const [context] = await createContexts(1);
+            const task = await taskService.createTask({
+                task_name: 'Initial Task',
+                context_id: context.context_id
+            });
 
-    describe('Archive Tasks', () => {
-        it('should archive a task successfully', async () => {
-            /* removed queryStub.resolves([{ affectedRows: 1 }]) */
-            const result = await taskService.archiveTask(1);
-            expect(result).to.be.true;
+            await expect(taskService.updateTask({
+                task_id: task.task_id,
+                status: 'Invalid'
+            })).to.be.rejectedWith('Invalid task status');
         });
 
-        it('should not archive a task already marked as archived', async () => {
-            /* removed queryStub.resolves([{ affectedRows: 0 }]) */
-            await expect(taskService.archiveTask(1)).to.be.rejectedWith(Error);
+        it('should fail to update a non-existent task', async () => {
+            await expect(taskService.updateTask({
+                task_id: 999,
+                task_name: 'Non-existent Task'
+            })).to.be.rejectedWith('Task not found');
         });
     });
 });

@@ -31,7 +31,7 @@ export const createProject = async (projectData) => {
 
 // Get all projects
 export const getAllProjects = async () => {
-    const [rows] = await pool.query(`SELECT * FROM dj.taskmanager_projects`);
+    const [rows] = await pool.query(`SELECT * FROM dj.taskmanager_projects WHERE archived=0 or archived IS NULL`);
     return rows;
 };
 

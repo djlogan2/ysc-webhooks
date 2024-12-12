@@ -1,5 +1,6 @@
 import fs from 'fs';
 import SqlParser from "node-sql-parser";
+
 const Parser = SqlParser.Parser;
 
 
@@ -70,7 +71,7 @@ class DBMock {
         for (const field in schema.fields) {
             const fieldSchema = schema.fields[field];
             if (fieldSchema.references) {
-                const { table: refTable, field: refField } = fieldSchema.references;
+                const {table: refTable, field: refField} = fieldSchema.references;
                 const refExists = this.data[refTable].some((refRow) => refRow[refField] === row[field]);
                 if (!refExists) {
                     throw new Error(`Foreign key constraint failed for ${field} in table ${table}.`);
@@ -79,7 +80,7 @@ class DBMock {
         }
 
         this.data[table].push(row);
-        return { insertId: row[schema.primaryKey], affectedRows: 1 };
+        return {insertId: row[schema.primaryKey], affectedRows: 1};
     }
 
     evaluateCondition(condition, row) {
@@ -115,7 +116,7 @@ class DBMock {
                 case 'LIKE':
                     return new RegExp(rightValue.replace(/%/g, '.*')).test(leftValue);
                 case 'IS':
-                    if(rightValue !== null)
+                    if (rightValue !== null)
                         throw Error('Do not know what to do with this IS value');
                     return leftValue === null || leftValue === undefined;
                 default:
@@ -127,17 +128,17 @@ class DBMock {
     }
 
     doit(node, values, _index) {
-        if(!node || typeof node !== 'object') return;
+        if (!node || typeof node !== 'object') return;
         let index = _index || 0;
-        if(!!node.left)
+        if (!!node.left)
             index = this.doit(node.left, values, index);
-        if(node.value === '?')
+        if (node.value === '?')
             node.qvalue = values[index++];
-        else if(typeof node.value === 'object')
+        else if (typeof node.value === 'object')
             index = this.doit(node.value, values, index);
         else
             node.qvalue = node.value;
-        if(!!node.right)
+        if (!!node.right)
             return this.doit(node.right, values, index);
         else
             return index;
@@ -153,15 +154,20 @@ class DBMock {
             const table = ast.table[0]?.table || ast.table.table;
             const fields = ast.columns;
             const row = {};
-            fields.forEach((field, idx) => {
-                row[field] = values[idx];
+            if (!!values)
+                fields.forEach((field, idx) => {
+                    row[field] = values[idx];
+                });
+            else
+                ast.values[0].value.forEach((field, idx) => {
+                row[ast.columns[idx]] = field.value;
             });
             const result = await this.insert(table, row);
             return [result];
         }
 
         if (ast.type === 'select') {
-            if(ast.where)
+            if (ast.where)
                 this.doit(ast.where, values);
             const table = ast.from[0]?.table || ast.from.table;
             const results = this.data[table].filter((row) => {
@@ -170,7 +176,7 @@ class DBMock {
             });
 
             if (ast?.columns?.[0]?.expr?.name === 'COUNT') {
-                return [[{ 'COUNT(*)': results.length }]];
+                return [[{'COUNT(*)': results.length}]];
             }
 
             if (!results?.length) {
@@ -186,12 +192,12 @@ class DBMock {
                 throw new Error(`Table ${table} does not exist.`);
             }
 
-            if(!!ast.set)
+            if (!!ast.set)
                 index = ast.set.reduce((pv, cv) => this.doit(cv, values, pv), 0);
-            if(!!ast.where)
+            if (!!ast.where)
                 this.doit(ast.where, values, index);
 
-            const updates = ast.set.map(({ column, value }) => ({
+            const updates = ast.set.map(({column, value}) => ({
                 column,
                 value: value.qvalue || value.value
             }));
@@ -202,7 +208,7 @@ class DBMock {
             });
 
             results.forEach((row) => {
-                updates.forEach(({ column, value }) => {
+                updates.forEach(({column, value}) => {
                     if (!schema.fields[column]) {
                         throw new Error(`Field ${column} does not exist in table ${table}.`);
                     }
@@ -210,7 +216,7 @@ class DBMock {
                 });
             });
 
-            return [{ affectedRows: results.length }];
+            return [{affectedRows: results.length}];
         }
 
         throw new Error(`Query type ${ast.type} not implemented.`);
