@@ -117,7 +117,7 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             await expect(taskService.updateTask({
                 task_id: task.task_id,
                 recurring_interval: 'invalid_interval'
-            })).to.be.rejectedWith('Invalid recurring_interval value');
+            })).to.be.rejectedWith('Invalid recurring_interval: invalid_interval');
         });
 
         it('should fail to update due_date to null if recurring_interval exists', async () => {
@@ -127,21 +127,23 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
                 due_date: getNextDate('every 1 week')
             });
 
-            await expect(taskService.updateTask(task.task_id, {
+            await expect(taskService.updateTask({
+                task_id: task.task_id,
                 due_date: null
-            })).to.be.rejectedWith('Due date is required when recurring_interval exists');
+            })).to.be.rejectedWith('Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.');
         });
 
         it('should fail to update due_date to an invalid value for the recurring_interval', async () => {
             const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task',
-                recurring_interval: 'every Monday',
-                due_date: getNextDate('every Monday')
+                recurring_interval: 'on Monday',
+                due_date: getNextDate('on Monday')
             });
 
-            await expect(taskService.updateTask(task.task_id, {
+            await expect(taskService.updateTask({
+                task_id: task.task_id,
                 due_date: getNextDate('on Tuesday') // Dynamically generated invalid date
-            })).to.be.rejectedWith('Due date does not align with recurring_interval');
+            })).to.be.rejectedWith('Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.');
         });
 
         it('should allow deleting recurring_interval', async () => {
@@ -151,7 +153,8 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
                 due_date: getNextDate('every 1 week')
             });
 
-            const updatedTask = await taskService.updateTask(task.task_id, {
+            const updatedTask = await taskService.updateTask({
+                task_id: task.task_id,
                 recurring_interval: null
             });
 
@@ -161,11 +164,12 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
         it('should allow valid changes to recurring_interval and due_date', async () => {
             const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task',
-                recurring_interval: 'every Monday',
-                due_date: getNextDate('every Monday')
+                recurring_interval: 'on Monday',
+                due_date: getNextDate('on Monday')
             });
 
-            const updatedTask = await taskService.updateTask(task.task_id, {
+            const updatedTask = await taskService.updateTask({
+                task_id: task.task_id,
                 recurring_interval: 'every 1 week',
                 due_date: getNextDate('every 1 week')
             });
@@ -179,7 +183,7 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
         it('should compute due_date correctly in UTC when timezone is specified', async () => {
             const taskData = {
                 task_name: 'Task with Timezone',
-                recurring_interval: 'every Monday at 8am'
+                recurring_interval: 'at 8:00 am on Monday'
             };
 
             const task = await createTaskWithContextAndTimezone(taskData, 'America/New_York');
@@ -188,16 +192,16 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
 
             // Calculate the expected due_date in UTC
             const nowInTimeZone = DateTime.now().setZone('America/New_York').toJSDate();
-            const expectedDate = later.schedule(later.parse.text('every Monday at 8am')).next(1, nowInTimeZone);
+            const expectedDate = later.schedule(later.parse.text('at 8:00 am on Monday')).next(1, nowInTimeZone);
             const expectedUTC = DateTime.fromJSDate(expectedDate, { zone: 'America/New_York' }).toUTC().toISO();
 
-            expect(task.due_date).to.be.closeTo(expectedUTC, oneMinuteInMilliseconds);
+            expect(task.due_date).to.be.equal(expectedUTC, oneMinuteInMilliseconds);
         });
 
         it('should store due_date as UTC when timezone is not specified', async () => {
             const taskData = {
                 task_name: 'Task without Timezone',
-                recurring_interval: 'every Monday at 8am'
+                recurring_interval: 'at 8:00 am on Monday'
             };
 
             const task = await createTaskWithContextAndTimezone(taskData);
@@ -206,16 +210,16 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
 
             // Calculate the expected due_date in UTC
             const nowUTC = DateTime.now().toJSDate();
-            const expectedDate = later.schedule(later.parse.text('every Monday at 8am')).next(1, nowUTC);
+            const expectedDate = later.schedule(later.parse.text('at 8:00 am on Monday')).next(1, nowUTC);
             const expectedUTC = DateTime.fromJSDate(expectedDate).toUTC().toISO();
 
-            expect(task.due_date).to.be.closeTo(expectedUTC, oneMinuteInMilliseconds);
+            expect(sanMS(task.due_date)).to.be.equal(sanMS(expectedUTC));
         });
 
         it('should fail to create a task with an invalid timezone', async () => {
             const taskData = {
                 task_name: 'Task with Invalid Timezone',
-                recurring_interval: 'every Monday at 8am'
+                recurring_interval: 'at 8:00 am on Monday'
             };
 
             await expect(createTaskWithContextAndTimezone(taskData, 'Invalid/Timezone')).to.be.rejectedWith('Invalid Timezone');

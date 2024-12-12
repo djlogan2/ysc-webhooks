@@ -2,6 +2,15 @@ import later from 'later';
 import { DateTime } from 'luxon';
 import pool from '../db.js';
 
+function isValidTimezone(timezone) {
+    try {
+        const dt = DateTime.local().setZone(timezone);
+        return dt.isValid;
+    } catch (e) {
+        return false;
+    }
+}
+
 // Fetch all tasks, with optional filters
 export const getAllTasks = async (filters = {}) => {
     let query = 'SELECT * FROM dj.taskmanager_tasks WHERE archived IS NULL OR archived = 0';
@@ -89,6 +98,8 @@ export const createTask = async (taskData, timezone = 'UTC') => {
 
             // Compute `due_date` if missing
             if (!taskData.due_date) {
+                if(!isValidTimezone(timezone))
+                    throw new Error('Invalid Timezone');
                 // Use Luxon to get the current time in the user's time zone
                 const nowInTimeZone = DateTime.now().setZone(timezone).toJSDate();
 
@@ -155,39 +166,76 @@ export const createTask = async (taskData, timezone = 'UTC') => {
 };
 
 // Update a task by ID
-export const updateTask = async (data) => {
+export const updateTask = async (taskObject) => {
+    if (!taskObject.task_id) {
+        throw new Error('Task ID is required for updating a task.');
+    }
+
+    const taskId = taskObject.task_id;
+
+    // Check if the task exists if recurring_interval is provided
+    let oldRecurringInterval = null;
+    let oldDueDate = null;
+
+    if (taskObject.recurring_interval !== undefined || taskObject.due_date !== undefined) {
+        const [rows] = await pool.query(
+            'SELECT recurring_interval, due_date FROM dj.taskmanager_tasks WHERE task_id = ?',
+            [taskId]
+        );
+
+        if (rows.length === 0) {
+            throw new Error('Task not found');
+        }
+
+        oldRecurringInterval = rows[0].recurring_interval;
+        oldDueDate = rows[0].due_date;
+    }
+
+    const newRecurringInterval = taskObject.recurring_interval !== undefined ? taskObject.recurring_interval : oldRecurringInterval;
+    const newDueDate = taskObject.due_date !== undefined ? taskObject.due_date : oldDueDate;
+
+    // Validate recurring_interval and due_date if either changes
+    if (newRecurringInterval !== oldRecurringInterval || newDueDate !== oldDueDate) {
+        if (newRecurringInterval) {
+            const schedule = later.parse.text(newRecurringInterval);
+            if (schedule.error !== -1) {
+                throw new Error(`Invalid recurring_interval: ${newRecurringInterval}`);
+            }
+
+            const validDates = later.schedule(schedule).next(5, new Date());
+            const isValidDueDate = validDates.some(
+                (date) => new Date(date).toISOString().split('T')[0] === new Date(newDueDate).toISOString().split('T')[0]
+            );
+
+            if (!isValidDueDate) {
+                throw new Error(
+                    'Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.'
+                );
+            }
+        }
+    }
+
+    // Dynamically build the update query
     const fields = [];
     const values = [];
-    let id;
 
-    for (const [key, value] of Object.entries(data)) {
-        if(key === 'task_id')
-            id = value;
-        else if (value !== undefined) {
+    for (const [key, value] of Object.entries(taskObject)) {
+        if (key !== 'task_id' && value !== undefined) {
             fields.push(`${key} = ?`);
             values.push(value);
         }
     }
 
-    // Ensure there's something to update
-    if(id === undefined) {
-        throw new Error('Invalid task id');
-    } else if (fields.length === 0) {
-        throw new Error('No fields provided to update');
+    if (fields.length === 0) {
+        throw new Error('No fields to update');
     }
 
-    // Add the updated_at field and task_id
-    values.push(id);
+    values.push(taskId);
 
-    const query = `
-        UPDATE dj.taskmanager_tasks
-        SET ${fields.join(', ')}
-        WHERE task_id = ?
-    `;
-
+    const query = `UPDATE dj.taskmanager_tasks SET ${fields.join(', ')} WHERE task_id = ?`;
     const [result] = await pool.query(query, values);
 
-    return result.affectedRows > 0 ? { task_id: id, ...data } : null;
+    return result.affectedRows > 0 ? { task_id: taskId, ...taskObject } : null;
 };
 
 // Archive (soft delete) a task
