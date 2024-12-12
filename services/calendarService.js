@@ -1,13 +1,13 @@
-import calendarConfig from '../config/calendarConfig';
+import calendarConfig from '../config/calendarConfig.js';
 
-exports.getCalendar = async () => {
+export const getCalendar = async () => {
     // Logic to fetch calendar data
 };
 
-exports.createCalendar = async (calendarData) => {
+export const createCalendar = async (calendarData) => {
     // Logic to create a new calendar
 };
 
-exports.deleteCalendar = async (id) => {
+export const deleteCalendar = async (id) => {
     // Logic to delete a calendar
 };

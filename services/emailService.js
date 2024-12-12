@@ -1,6 +1,5 @@
 import {  Client  } from '@microsoft/microsoft-graph-client';
-import emailConfig from '../config/emailConfig';
-require('isomorphic-fetch');
+import emailConfig from '../config/emailConfig.js';
 
 // Initialize the Graph client
 function getAuthenticatedClient(accessToken) {
@@ -126,10 +125,4 @@ async function getAttachmentData(messageId, attachmentId) {
     }
 }
 
-module.exports = {
-    getInbox,
-    deleteEmail,
-    archiveEmail,
-    sendEmail,
-    getAttachmentData
-};
+export { getInbox, deleteEmail, archiveEmail, sendEmail, getAttachmentData };

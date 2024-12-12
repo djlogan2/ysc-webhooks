@@ -1,6 +1,6 @@
-import express from 'express';
+import express from 'express.js';
 const router = express.Router();
-import noteController from '../../controllers/taskmanager/noteController';
+import noteController from '../../controllers/taskmanager/noteController.js';
 
 router.get('/task/:taskId', noteController.getNotesByTaskId);
 router.post('/', noteController.createNote);

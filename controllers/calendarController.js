@@ -1,6 +1,6 @@
-import calendarService from '../services/calendarService';
+import calendarService from '../services/calendarService.js';
 
-exports.readCalendar = async (req, res) => {
+export const readCalendar = async (req, res) => {
     try {
         const calendar = await calendarService.getCalendar();
         res.json(calendar);
@@ -9,7 +9,7 @@ exports.readCalendar = async (req, res) => {
     }
 };
 
-exports.createCalendar = async (req, res) => {
+export const createCalendar = async (req, res) => {
     try {
         const newCalendar = await calendarService.createCalendar(req.body);
         res.status(201).json(newCalendar);
@@ -18,7 +18,7 @@ exports.createCalendar = async (req, res) => {
     }
 };
 
-exports.deleteCalendar = async (req, res) => {
+export const deleteCalendar = async (req, res) => {
     try {
         await calendarService.deleteCalendar(req.params.id);
         res.json({ message: 'Calendar deleted successfully' });

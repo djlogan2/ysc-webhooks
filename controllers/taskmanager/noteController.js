@@ -1,6 +1,6 @@
-import noteService from '../../services/taskmanager/noteService';
+import noteService from '../../services/taskmanager/noteService.js';
 
-exports.getNotesByTaskId = async (req, res) => {
+export const getNotesByTaskId = async (req, res) => {
     try {
         const { taskId } = req.params;
         const notes = await noteService.getNotesByTaskId(taskId);
@@ -11,7 +11,7 @@ exports.getNotesByTaskId = async (req, res) => {
     }
 };
 
-exports.createNote = async (req, res) => {
+export const createNote = async (req, res) => {
     try {
         const { task_id, note_text } = req.body;
 
@@ -28,7 +28,7 @@ exports.createNote = async (req, res) => {
     }
 };
 
-exports.updateNote = async (req, res) => {
+export const updateNote = async (req, res) => {
     try {
         const { id } = req.params;
         const { note_text } = req.body;
@@ -49,7 +49,7 @@ exports.updateNote = async (req, res) => {
     }
 };
 
-exports.deleteNote = async (req, res) => {
+export const deleteNote = async (req, res) => {
     try {
         const { id } = req.params;
         const success = await noteService.deleteNote(id);

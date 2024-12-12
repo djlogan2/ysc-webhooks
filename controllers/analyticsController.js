@@ -1,4 +1,4 @@
-import {  saveAnalyticsData, queryAnalyticsData  } from '../services/analyticsService';
+import {  saveAnalyticsData, queryAnalyticsData  } from '../services/analyticsService.js';
 
 // Controller to save analytics data
 async function saveAnalytics(req, res) {
@@ -24,4 +24,4 @@ async function getAnalytics(req, res) {
     }
 }
 
-module.exports = { saveAnalytics, getAnalytics };
+export { saveAnalytics, getAnalytics };

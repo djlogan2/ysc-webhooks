@@ -1,7 +1,7 @@
-import projectService from '../../services/taskmanager/projectService';
+import projectService from '../../services/taskmanager/projectService.js';
 
 // Create a project
-exports.createProject = async (req, res) => {
+export const createProject = async (req, res) => {
     try {
         const project = await projectService.createProject(req.body);
         res.status(201).json(project);
@@ -12,7 +12,7 @@ exports.createProject = async (req, res) => {
 };
 
 // Get all projects
-exports.getAllProjects = async (req, res) => {
+export const getAllProjects = async (req, res) => {
     try {
         const projects = await projectService.getAllProjects();
         res.status(200).json(projects);
@@ -23,7 +23,7 @@ exports.getAllProjects = async (req, res) => {
 };
 
 // Get a project by ID
-exports.getProjectById = async (req, res) => {
+export const getProjectById = async (req, res) => {
     try {
         const project = await projectService.getProjectById(req.params.id);
         if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -35,7 +35,7 @@ exports.getProjectById = async (req, res) => {
 };
 
 // Update a project
-exports.updateProject = async (req, res) => {
+export const updateProject = async (req, res) => {
     try {
         const updatedProject = await projectService.updateProject(req.params.id, req.body);
         res.status(200).json(updatedProject);
@@ -46,7 +46,7 @@ exports.updateProject = async (req, res) => {
 };
 
 // Delete a project
-exports.deleteProject = async (req, res) => {
+export const deleteProject = async (req, res) => {
     try {
         await projectService.deleteProject(req.params.id);
         res.status(204).send();

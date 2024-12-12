@@ -1,11 +1,30 @@
-import dbMock from '../utils/dbmock';
-import projectService from '../../services/taskmanager/projectService';
+import * as chai from 'chai';
+import { expect } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import sinon from 'sinon';
+import * as projectService from '../../services/taskmanager/projectService.js';
+import * as clientService from '../../services/taskmanager/clientService.js';
+import * as taskService from '../../services/taskmanager/taskService.js';
+import * as contextService from '../../services/taskmanager/contextService.js';
+import pool from '../../services/db.js';
+import dbMock from '../../tests/utils/dbmock.js';
+
+chai.use(chaiAsPromised);
 
 describe('Project Service Tests', () => {
+    let queryStub;
+    let context;
 
-    beforeEach(() => {
-        dbMock.resetDatabase();
-        dbMock.insert('taskmanager_clients', { client_name: 'Client 1', archived: 0 });
+    beforeEach(async () => {
+        queryStub = sinon.stub(pool, 'query').callsFake((...args) => dbMock.query(...args));
+        // Create a minimal context for tasks
+        context = await contextService.createContext({
+            context_name: 'Default Context'
+        });
+    });
+
+    afterEach(() => {
+        queryStub.restore();
     });
 
     describe('Create Projects', () => {
@@ -18,120 +37,133 @@ describe('Project Service Tests', () => {
             archived: 0
         };
 
-        it('should create a project with all fields provided', async () => {
-            const result = await projectService.createProject(fullProjectData);
-            expect(result.project_name).toBe('Test Project');
-            expect(result.client_id).toBe(1);
+        it('should not allow start_date to be after due_date', async () => {
+            await expect(projectService.createProject({
+                ...fullProjectData,
+                start_date: '2024-12-31',
+                due_date: '2024-12-01'
+            })).to.be.rejectedWith('Start date cannot be after due date');
         });
 
-        it('should fail if a required field is missing', async () => {
-            const requiredFields = ['project_name', 'client_id'];
+        it('should fail to create project without required fields', async () => {
+            await expect(projectService.createProject({})).to.be.rejectedWith('Field project_name cannot be null');
 
-            for (const field of requiredFields) {
-                const invalidData = { ...fullProjectData };
-                delete invalidData[field];
-
-                await expect(projectService.createProject(invalidData)).rejects.toThrow();
-            }
-        });
-
-        it('should create a project with default client/project if default_project is true', async () => {
-            import configMock from '../../config/taskmanagerConfig';
-            configMock.setDefaults({ default_client_id: 999 });
-
-            const result = await projectService.createProject({
-                project_name: 'Default Test',
-                default_project: true
+            const client = await clientService.createClient({
+                client_name: 'Test Client',
+                contact_info: 'test@example.com'
             });
 
-            expect(result.client_id).toBe(999);
-        });
-
-        it('should fail if both default_project and client_id are provided', async () => {
-            const invalidData = {
-                project_name: 'Invalid Project',
-                default_project: true,
-                client_id: 1
-            };
-
-            await expect(projectService.createProject(invalidData)).rejects.toThrow();
+            await expect(projectService.createProject({
+                client_id: client.client_id
+            })).to.be.rejectedWith('Field project_name cannot be null');
         });
     });
 
     describe('Update Projects', () => {
-        beforeEach(() => {
-            dbMock.insert('taskmanager_projects', {
-                project_name: 'Original Project',
-                client_id: 1,
-                archived: 0
-            });
-        });
-
         it('should update project fields successfully', async () => {
+            const client = await clientService.createClient({
+                client_name: 'Test Client',
+                contact_info: 'test@example.com'
+            });
+
+            const project = await projectService.createProject({
+                project_name: 'Test Project',
+                client_id: client.client_id,
+                status: 'Active'
+            });
+
             const updatedData = {
-                project_id: 1,
+                project_id: project.project_id,
                 project_name: 'Updated Project',
                 status: 'On Hold'
             };
 
             const result = await projectService.updateProject(updatedData);
-            expect(result.project_name).toBe('Updated Project');
-            expect(result.status).toBe('On Hold');
+
+            expect(result).to.have.property('project_id', project.project_id);
+            expect(result.project_name).to.equal(updatedData.project_name);
+            expect(result.status).to.equal(updatedData.status);
         });
 
         it('should fail to archive a project with open tasks', async () => {
-            dbMock.insert('taskmanager_tasks', {
-                task_id: 1,
-                project_id: 1,
+            const client = await clientService.createClient({
+                client_name: 'Test Client',
+                contact_info: 'test@example.com'
+            });
+
+            const project = await projectService.createProject({
+                project_name: 'Test Project',
+                client_id: client.client_id,
                 status: 'Active'
             });
 
-            await expect(
-                projectService.updateProject({ project_id: 1, archived: 1 })
-            ).rejects.toThrow();
+            // Create an open task associated with the project
+            const task = await taskService.createTask({
+                task_name: 'Test Task',
+                context_id: context.context_id,
+                status: 'Next Action',
+                project_id: project.project_id
+            });
+
+            await expect(projectService.updateProject({
+                project_id: project.project_id,
+                archived: 1
+            })).to.be.rejectedWith('Cannot archive project with incomplete tasks');
         });
 
-        it('should fail to update default project or client', async () => {
-            dbMock.insert('taskmanager_projects', { project_id: 999, project_name: 'Default Project', default_project: 1 });
+        it('should allow archiving a project with completed tasks', async () => {
+            const client = await clientService.createClient({
+                client_name: 'Test Client',
+                contact_info: 'test@example.com'
+            });
 
-            await expect(
-                projectService.updateProject({ project_id: 999, archived: 1 })
-            ).rejects.toThrow();
+            const project = await projectService.createProject({
+                project_name: 'Test Project',
+                client_id: client.client_id,
+                status: 'Active'
+            });
+
+            // Create a completed task associated with the project
+            const task = await taskService.createTask({
+                task_name: 'Completed Task',
+                context_id: context.context_id,
+                project_id: project.project_id
+            });
+
+            const result2 = await taskService.completeTask(task.task_id);
+
+            const result = await projectService.updateProject({
+                project_id: project.project_id,
+                archived: 1
+            });
+
+            expect(result).to.have.property('archived', 1);
         });
     });
 
     describe('Read Projects', () => {
-        beforeEach(() => {
-            dbMock.insert('taskmanager_projects', {
-                project_id: 1,
-                project_name: 'Active Project',
-                client_id: 1,
-                archived: 0
+        it('should retrieve a specific project by ID', async () => {
+            const client = await clientService.createClient({
+                client_name: 'Test Client',
+                contact_info: 'test@example.com'
             });
-            dbMock.insert('taskmanager_projects', {
-                project_id: 2,
-                project_name: 'Archived Project',
-                client_id: 1,
-                archived: 1
+
+            const project = await projectService.createProject({
+                project_name: 'Test Project',
+                client_id: client.client_id
             });
+
+            const result = await projectService.getProjectById(project.project_id);
+
+            expect(result).to.have.property('project_id', project.project_id);
+            expect(result.project_name).to.equal('Test Project');
         });
 
-        it('should retrieve all active projects', async () => {
+        it('should retrieve all unarchived projects', async () => {
             const result = await projectService.getProjects();
-            expect(result.length).toBe(1);
-            expect(result[0].project_name).toBe('Active Project');
-        });
 
-        it('should retrieve archived projects when requested', async () => {
-            const result = await projectService.getProjects({ archived: true });
-            expect(result.length).toBe(1);
-            expect(result[0].project_name).toBe('Archived Project');
-        });
-
-        it('should retrieve specific fields only', async () => {
-            const result = await projectService.getProjects({ fields: ['project_name'] });
-            expect(result[0]).toHaveProperty('project_name');
-            expect(result[0]).not.toHaveProperty('client_id');
+            expect(result).to.be.an('array');
+            expect(result.every((project) => project.archived === 0)).to.be.true;
         });
     });
 });

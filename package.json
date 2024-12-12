@@ -10,6 +10,7 @@
   "private": true,
   "dependencies": {
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "date-fns": "^4.1.0",
     "express": "^4.21.2",
     "fflate": "^0.8.2",
     "isomorphic-fetch": "^3.0.0",
@@ -19,9 +20,11 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nanoid": "^5.0.9",
+    "chai": "^5.1.2",
+    "chai-as-promised": "^8.0.1",
+    "mocha": "^11.0.1",
     "node-sql-parser": "^5.3.5",
+    "sinon": "^19.0.2",
     "supertest": "^7.0.0"
   }
 }

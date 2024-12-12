@@ -1,3 +1,1 @@
-module.exports = {
-    something: 'here'
-}
+export { something: 'here' };

@@ -1,6 +1,6 @@
-import contextService from '../../services/taskmanager/contextService';
+import contextService from '../../services/taskmanager/contextService.js';
 
-exports.getAllContexts = async (req, res) => {
+export const getAllContexts = async (req, res) => {
     try {
         const contexts = await contextService.getAllContexts();
         res.status(200).json(contexts);
@@ -10,7 +10,7 @@ exports.getAllContexts = async (req, res) => {
     }
 };
 
-exports.createContext = async (req, res) => {
+export const createContext = async (req, res) => {
     try {
         const { context_name } = req.body;
         const context = await contextService.createContext(context_name);
@@ -21,7 +21,7 @@ exports.createContext = async (req, res) => {
     }
 };
 
-exports.updateContext = async (req, res) => {
+export const updateContext = async (req, res) => {
     try {
         const { id } = req.params;
         const { context_name } = req.body;
@@ -36,7 +36,7 @@ exports.updateContext = async (req, res) => {
     }
 };
 
-exports.deleteContext = async (req, res) => {
+export const deleteContext = async (req, res) => {
     try {
         const { id } = req.params;
         const success = await contextService.deleteContext(id);

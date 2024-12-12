@@ -1,6 +1,6 @@
-import clientService from '../../services/taskmanager/clientService';
+import clientService from '../../services/taskmanager/clientService.js';
 
-exports.getAllClients = async (req, res) => {
+export const getAllClients = async (req, res) => {
     try {
         const clients = await clientService.getAllClients();
         res.status(200).json(clients);
@@ -10,7 +10,7 @@ exports.getAllClients = async (req, res) => {
     }
 };
 
-exports.getClientById = async (req, res) => {
+export const getClientById = async (req, res) => {
     try {
         const client = await clientService.getClientById(req.params.id);
         if (!client) {
@@ -23,7 +23,7 @@ exports.getClientById = async (req, res) => {
     }
 };
 
-exports.createClient = async (req, res) => {
+export const createClient = async (req, res) => {
     try {
         const client = await clientService.createClient(req.body);
         res.status(201).json(client);
@@ -33,7 +33,7 @@ exports.createClient = async (req, res) => {
     }
 };
 
-exports.updateClient = async (req, res) => {
+export const updateClient = async (req, res) => {
     try {
         const client = await clientService.updateClient(req.params.id, req.body);
         if (!client) {
@@ -46,7 +46,7 @@ exports.updateClient = async (req, res) => {
     }
 };
 
-exports.archiveClient = async (req, res) => {
+export const archiveClient = async (req, res) => {
     try {
         const success = await clientService.archiveClient(req.params.id);
         if (!success) {
@@ -59,7 +59,7 @@ exports.archiveClient = async (req, res) => {
     }
 };
 
-exports.deleteClient = async (req, res) => {
+export const deleteClient = async (req, res) => {
     try {
         const success = await clientService.deleteClient(req.params.id);
         if (!success) {

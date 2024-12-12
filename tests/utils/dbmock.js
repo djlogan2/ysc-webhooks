@@ -1,20 +1,12 @@
-import {  Parser  } from 'node-sql-parser';
-import { nanoid } from 'nanoid';
 import fs from 'fs';
+import SqlParser from "node-sql-parser";
+const Parser = SqlParser.Parser;
+
 
 class DBMock {
     constructor() {
         this.schema = {};
         this.data = {};
-        this.queue = Promise.resolve(); // Initialize an empty promise queue
-    }
-
-    async executeQueued(fn) {
-        this.queue = this.queue.then(fn).catch((err) => {
-            console.error('Error in DBMock operation:', err);
-            throw err; // Ensure errors propagate correctly
-        });
-        return this.queue;
     }
 
     loadSchema(schema) {
@@ -29,162 +21,199 @@ class DBMock {
         }
     }
 
+    generateUniqueId() {
+        return Math.floor(100000 + Math.random() * 900000);
+    }
+
     async insert(table, row) {
-        return this.executeQueued(() => {
+        const schema = this.schema[table];
+        if (!schema) {
+            throw new Error(`Table ${table} does not exist.`);
+        }
+
+        // Validate fields
+        for (const field in row) {
+            if (!schema.fields[field]) {
+                throw new Error(`Field ${field} does not exist in table ${table}.`);
+            }
+        }
+
+        // Check NOT NULL constraints and handle default values
+        for (const field in schema.fields) {
+            const fieldSchema = schema.fields[field];
+            if (field === schema.primaryKey && fieldSchema.autoIncrement) {
+                continue;
+            }
+            if (row[field] === undefined || row[field] === null) {
+                if (!fieldSchema.nullable) {
+                    if (fieldSchema.default !== undefined && fieldSchema.default !== null) {
+                        row[field] = fieldSchema.default;
+                    } else {
+                        throw new Error(`Field ${field} cannot be null in table ${table}.`);
+                    }
+                }
+            }
+        }
+
+        // Handle auto-increment primary key
+        if (schema.primaryKey) {
+            if (schema.fields[schema.primaryKey].autoIncrement) {
+                row[schema.primaryKey] = this.generateUniqueId();
+            } else {
+                if (!row[schema.primaryKey]) {
+                    throw new Error(`Primary key '${schema.primaryKey}' must be provided for table '${table}'`);
+                }
+            }
+        }
+
+        // Foreign key validations
+        for (const field in schema.fields) {
+            const fieldSchema = schema.fields[field];
+            if (fieldSchema.references) {
+                const { table: refTable, field: refField } = fieldSchema.references;
+                const refExists = this.data[refTable].some((refRow) => refRow[refField] === row[field]);
+                if (!refExists) {
+                    throw new Error(`Foreign key constraint failed for ${field} in table ${table}.`);
+                }
+            }
+        }
+
+        this.data[table].push(row);
+        return { insertId: row[schema.primaryKey], affectedRows: 1 };
+    }
+
+    evaluateCondition(condition, row) {
+        if (condition.type === 'binary_expr') {
+            const {left, operator, right} = condition;
+
+            if (operator === 'AND') {
+                return this.evaluateCondition(left, row) && this.evaluateCondition(right, row);
+            }
+
+            if (operator === 'OR') {
+                return this.evaluateCondition(left, row) || this.evaluateCondition(right, row);
+            }
+
+            const leftValue = left.type === 'column_ref' ? row[left.column] : (left.qvalue || left.value);
+            const rightValue = right.type === 'column_ref' ? row[right.column] : (right.qvalue || right.value);
+
+            console.log(`evaluateCondition: ${JSON.stringify(left)} ${operator} ${JSON.stringify(right)} : ${leftValue} ${operator} ${rightValue} : ${rightValue}`);
+
+            switch (operator) {
+                case '=':
+                    return leftValue === rightValue;
+                case '!=':
+                    return leftValue !== rightValue;
+                case '<':
+                    return leftValue < rightValue;
+                case '>':
+                    return leftValue > rightValue;
+                case '<=':
+                    return leftValue <= rightValue;
+                case '>=':
+                    return leftValue >= rightValue;
+                case 'LIKE':
+                    return new RegExp(rightValue.replace(/%/g, '.*')).test(leftValue);
+                case 'IS':
+                    if(rightValue !== null)
+                        throw Error('Do not know what to do with this IS value');
+                    return leftValue === null || leftValue === undefined;
+                default:
+                    throw new Error(`Unsupported operator ${operator}.`);
+            }
+        }
+
+        throw new Error(`Unsupported condition type: ${condition.type}`);
+    }
+
+    doit(node, values, _index) {
+        if(!node || typeof node !== 'object') return;
+        let index = _index || 0;
+        if(!!node.left)
+            index = this.doit(node.left, values, index);
+        if(node.value === '?')
+            node.qvalue = values[index++];
+        else if(typeof node.value === 'object')
+            index = this.doit(node.value, values, index);
+        else
+            node.qvalue = node.value;
+        if(!!node.right)
+            return this.doit(node.right, values, index);
+        else
+            return index;
+    }
+
+    async query(sql, values) {
+        console.log(`query : ${sql} : ${JSON.stringify(values)}`);
+        const parser = new Parser();
+        const ast = parser.astify(sql);
+        let index = 0;
+
+        if (ast.type === 'insert') {
+            const table = ast.table[0]?.table || ast.table.table;
+            const fields = ast.columns;
+            const row = {};
+            fields.forEach((field, idx) => {
+                row[field] = values[idx];
+            });
+            const result = await this.insert(table, row);
+            return [result];
+        }
+
+        if (ast.type === 'select') {
+            if(ast.where)
+                this.doit(ast.where, values);
+            const table = ast.from[0]?.table || ast.from.table;
+            const results = this.data[table].filter((row) => {
+                if (!ast.where) return true;
+                return this.evaluateCondition(ast.where, row);
+            });
+
+            if (ast?.columns?.[0]?.expr?.name === 'COUNT') {
+                return [[{ 'COUNT(*)': results.length }]];
+            }
+
+            if (!results?.length) {
+                return [[]];
+            }
+            return [results];
+        }
+
+        if (ast.type === 'update') {
+            const table = ast.table[0]?.table || ast.table.table;
             const schema = this.schema[table];
             if (!schema) {
                 throw new Error(`Table ${table} does not exist.`);
             }
 
-            // Validate fields
-            for (const field in row) {
-                if (!schema.fields[field]) {
-                    throw new Error(`Field ${field} does not exist in table ${table}.`);
-                }
-            }
+            if(!!ast.set)
+                index = ast.set.reduce((pv, cv) => this.doit(cv, values, pv), 0);
+            if(!!ast.where)
+                this.doit(ast.where, values, index);
 
-            // Check NOT NULL constraints and handle default values
-            for (const field in schema.fields) {
-                const fieldSchema = schema.fields[field];
+            const updates = ast.set.map(({ column, value }) => ({
+                column,
+                value: value.qvalue || value.value
+            }));
 
-                // Skip auto-increment primary keys from validation
-                if (field === schema.primaryKey && fieldSchema.autoIncrement) {
-                    continue;
-                }
+            const results = this.data[table].filter((row) => {
+                if (!ast.where) return true;
+                return this.evaluateCondition(ast.where, row, values);
+            });
 
-                if (row[field] === undefined || row[field] === null) {
-                    if (!fieldSchema.nullable) {
-                        if (fieldSchema.default !== undefined && fieldSchema.default !== null) {
-                            row[field] = fieldSchema.default; // Apply default if defined
-                        } else {
-                            throw new Error(`Field ${field} cannot be null in table ${table}.`);
-                        }
+            results.forEach((row) => {
+                updates.forEach(({ column, value }) => {
+                    if (!schema.fields[column]) {
+                        throw new Error(`Field ${column} does not exist in table ${table}.`);
                     }
-                }
-            }
-
-            // Handle auto-increment primary key
-            if (schema.primaryKey) {
-                if (schema.fields[schema.primaryKey].autoIncrement) {
-                    const currentData = this.data[table] || [];
-                    console.log('currentData:', currentData); // Debugging log
-
-                    const maxKey = currentData.length > 0
-                        ? Math.max(0, ...currentData.map((r) => r[schema.primaryKey] || 0))
-                        : 0;
-                    console.log('maxKey:', maxKey); // Debugging log
-
-                    if (!row) {
-                        console.error('row is undefined or null:', row);
-                        throw new Error('Row object is missing.');
-                    }
-
-                    console.log('row before assignment:', row); // Debugging log
-                    console.log('schema.primaryKey:', schema.primaryKey); // Debugging log
-
-                    row[schema.primaryKey] = nanoid(); //maxKey + 1; // Suspected crash point
-                    console.log('row after assignment:', row); // Debugging log
-                } else {
-                    if (!row[schema.primaryKey]) {
-                        throw new Error(`Primary key '${schema.primaryKey}' must be provided for table '${table}'`);
-                    }
-                }
-            }
-            // Foreign key validations
-            for (const field in schema.fields) {
-                const fieldSchema = schema.fields[field];
-
-                if (fieldSchema.references) {
-                    const { table: refTable, field: refField } = fieldSchema.references;
-                    const refExists = this.data[refTable].some((refRow) => refRow[refField] === row[field]);
-
-                    if (!refExists) {
-                        throw new Error(`Foreign key constraint failed for ${field} in table ${table}.`);
-                    }
-                }
-            }
-
-            this.data[table].push(row);
-            return { insertId: row[schema.primaryKey], affectedRows: 1 };
-        });
-    }
-
-    async query(sql, values) {
-        return this.executeQueued(() => {
-            const parser = new Parser();
-            const ast = parser.astify(sql);
-
-            let index = 0; // For placeholder value resolution
-
-            if (ast.type === 'insert') {
-                const table = ast.table[0]?.table || ast.table.table;
-                const fields = ast.columns;
-                const row = {};
-
-                fields.forEach((field, idx) => {
-                    row[field] = values[idx];
+                    row[column] = value;
                 });
+            });
 
-                return [this.insert(table, row)];
-            }
+            return [{ affectedRows: results.length }];
+        }
 
-            if (ast.type === 'select') {
-                const table = ast.from[0]?.table || ast.from.table;
-                const results = this.data[table].filter((row) => {
-                    if (!ast.where) return true;
-
-                    return this.evaluateCondition(ast.where, row, values, () => values[index++]);
-                });
-
-                if (ast?.columns?.[0]?.expr?.name === 'COUNT') return [{ 'COUNT(*)': results.length }];
-                if (!results?.length) return [[[]]];
-                return [results];
-            }
-
-            if (ast.type === 'update') {
-                const table = ast.table[0]?.table || ast.table.table;
-                const schema = this.schema[table];
-
-                if (!schema) {
-                    throw new Error(`Table ${table} does not exist.`);
-                }
-
-                const updates = ast.set.map(({ column, value }) => ({
-                    column,
-                    value: value.value === '?' ? values[index++] : value.value,
-                }));
-
-                const results = this.data[table].filter((row) => {
-                    if (!ast.where) return true;
-
-                    return this.evaluateCondition(ast.where, row, values, () => values[index++]);
-                });
-
-                results.forEach((row) => {
-                    updates.forEach(({ column, value }) => {
-                        if (!schema.fields[column]) {
-                            throw new Error(`Field ${column} does not exist in table ${table}.`);
-                        }
-
-                        const fieldSchema = schema.fields[column];
-
-                        // Validate ENUMs
-                        if (fieldSchema.type === 'ENUM') {
-                            if (!fieldSchema.values.includes(value)) {
-                                throw new Error(`Invalid ENUM value for ${column} in table ${table}.`);
-                            }
-                        }
-
-                        // Apply the update
-                        row[column] = value;
-                    });
-                });
-
-                return [{ affectedRows: results.length }];
-            }
-
-            throw new Error(`Query type ${ast.type} not implemented.`);
-        });
+        throw new Error(`Query type ${ast.type} not implemented.`);
     }
 }
 

@@ -1,6 +1,6 @@
-import priorityService from '../../services/taskmanager/priorityService';
+import priorityService from '../../services/taskmanager/priorityService.js';
 
-exports.getAllPriorities = async (req, res) => {
+export const getAllPriorities = async (req, res) => {
     try {
         const priorities = await priorityService.getAllPriorities();
         res.status(200).json(priorities);
@@ -10,7 +10,7 @@ exports.getAllPriorities = async (req, res) => {
     }
 };
 
-exports.createPriority = async (req, res) => {
+export const createPriority = async (req, res) => {
     try {
         const { priority_name } = req.body;
 
@@ -27,7 +27,7 @@ exports.createPriority = async (req, res) => {
     }
 };
 
-exports.updatePriority = async (req, res) => {
+export const updatePriority = async (req, res) => {
     try {
         const { id } = req.params;
         const { priority_name } = req.body;
@@ -42,7 +42,7 @@ exports.updatePriority = async (req, res) => {
     }
 };
 
-exports.deletePriority = async (req, res) => {
+export const deletePriority = async (req, res) => {
     try {
         const { id } = req.params;
         const success = await priorityService.deletePriority(id);

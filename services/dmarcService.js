@@ -1,4 +1,4 @@
-import db from './db';
+import db from './db.js';
 
 class DMARCService {
     async writeDMARCRecord(record) {
@@ -24,4 +24,4 @@ class DMARCService {
     }
 }
 
-module.exports = new DMARCService();
+export default new DMARCService();

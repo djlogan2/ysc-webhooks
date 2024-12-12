@@ -1,6 +1,6 @@
-import emailService from '../../services/emailService';
-import dmarcService from '../../services/dmarcService';
-import dmarcProcessor from '../../background/dmarc';
+import emailService from '../../services/emailService.js';
+import dmarcService from '../../services/dmarcService.js';
+import dmarcProcessor from '../../background/dmarc.js';
 
 jest.mock('../../services/emailService', () => ({
     getInbox: jest.fn(),

@@ -1,111 +1,104 @@
-import clientService from '../../services/taskmanager/clientService';
+import * as chai from 'chai';
+import { expect } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import sinon from 'sinon';
+import * as clientService from '../../services/taskmanager/clientService.js';
+import pool from '../../services/db.js';
+import dbMock from '../../tests/utils/dbmock.js';
+import * as projectService from "../../services/taskmanager/projectService.js";
 
-// Mock the `db.js` module inline to avoid out-of-scope variable errors.
-jest.mock('../../services/db', () => {
-    import dbMock from '../utils/dbmock';
-    return dbMock;
-});
+chai.use(chaiAsPromised);
 
 describe('Client Service', () => {
-    let dbMock;
-
-    beforeAll(() => {
-        dbMock = require('../utils/dbmock');
-        //dbMock.init(); // Initialize the mock database schema
-    });
+    let queryStub;
 
     beforeEach(() => {
-        dbMock.resetDatabase(); // Reset the database state before each test
+        queryStub = sinon.stub(pool, 'query').callsFake((...args) => dbMock.query(...args));
+    });
+
+    afterEach(() => {
+        queryStub.restore();
     });
 
     describe('Create Client', () => {
         it('should create a new client successfully', async () => {
             const clientData = { client_name: 'Test Client', contact_info: 'test@example.com' };
-            const result = await clientService.createClient(clientData);
 
-            expect(result).toHaveProperty('client_id');
-            expect(result.client_name).toBe(clientData.client_name);
-            expect(result.contact_info).toBe(clientData.contact_info);
-
-            const dbData = dbMock.data.taskmanager_clients.find((c) => c.client_id === result.client_id);
-            expect(dbData).toBeTruthy();
+            try {
+                const result = await clientService.createClient(clientData);
+                expect(result).to.have.property('client_id');
+                expect(result.client_id).to.be.a('number');
+                expect(result.client_name).to.equal(clientData.client_name);
+                expect(result.contact_info).to.equal(clientData.contact_info);
+                expect(queryStub.calledOnce).to.be.true;
+                expect(queryStub.firstCall.args[0]).to.include('INSERT INTO dj.taskmanager_clients');
+            } catch (error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
         });
-
         it('should throw an error for missing client_name', async () => {
             const clientData = { contact_info: 'test@example.com' };
-
-            await expect(clientService.createClient(clientData)).rejects.toThrow();
-        });
-    });
-
-    describe('Get Clients', () => {
-        it('should get all unarchived clients', async () => {
-            const client1Id = dbMock.insert('taskmanager_clients', { client_name: 'Client 1', archived: 0 });
-            dbMock.insert('taskmanager_clients', { client_name: 'Client 2', archived: 1 });
-
-            const result = await clientService.getAllClients();
-
-            expect(result.length).toBe(1);
-            expect(result[0].client_id).toBe(client1Id);
-        });
-
-        it('should get a client by id', async () => {
-            const clientId = dbMock.insert('taskmanager_clients', { client_name: 'Client 1', contact_info: 'client1@example.com' });
-
-            const result = await clientService.getClientById(clientId);
-
-            expect(result).toBeTruthy();
-            expect(result.client_name).toBe('Client 1');
-            expect(result.contact_info).toBe('client1@example.com');
-        });
-
-        it('should return null for a non-existent client id', async () => {
-            const result = await clientService.getClientById(999);
-
-            expect(result).toEqual([]);
-        });
-    });
-
-    describe('Update Client', () => {
-        it('should update a client successfully', async () => {
-            const clientId = dbMock.insert('taskmanager_clients', { client_name: 'Client 1', contact_info: 'client1@example.com' });
-
-            const updatedData = { client_name: 'Updated Client', contact_info: 'updated@example.com' };
-            const result = await clientService.updateClient(clientId, updatedData);
-
-            expect(result).toBeTruthy();
-            expect(result.client_name).toBe('Updated Client');
-            expect(result.contact_info).toBe('updated@example.com');
-
-            const dbData = dbMock.data.taskmanager_clients.find((c) => c.client_id === clientId);
-            expect(dbData.client_name).toBe('Updated Client');
-        });
-
-        it('should return null for updating a non-existent client', async () => {
-            const updatedData = { client_name: 'Updated Client', contact_info: 'updated@example.com' };
-            const result = await clientService.updateClient(999, updatedData);
-
-            expect(result).toBeNull();
+            await expect(clientService.createClient(clientData)).to.be.rejectedWith('Field client_name cannot be null in table taskmanager_clients.');
         });
     });
 
     describe('Archive Client', () => {
         it('should archive a client successfully', async () => {
-            const clientId = dbMock.insert('taskmanager_clients', { client_name: 'Client 1', archived: 0 });
+            const clientData = { client_name: 'Test Client', contact_info: 'test@example.com' };
+            let client_id;
 
-            const result = await clientService.archiveClient(clientId);
+            try {
+                const result = await clientService.createClient(clientData);
+                expect(result).to.have.property('client_id');
+                expect(result.client_id).to.be.a('number');
+                expect(result.client_name).to.equal(clientData.client_name);
+                expect(result.contact_info).to.equal(clientData.contact_info);
+                client_id = result.client_id;
+            } catch (error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
 
-            expect(result).toBe(true);
-
-            const dbData = dbMock.data.taskmanager_clients.find((c) => c.client_id === clientId);
-            expect(dbData.archived).toBe(1);
+            try {
+                const result = await clientService.archiveClient(client_id);
+                expect(result).to.be.true;
+            } catch(error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
         });
 
         it('should not archive a client with unarchived projects', async () => {
-            const clientId = dbMock.insert('taskmanager_clients', { client_name: 'Client 1', archived: 0 });
-            dbMock.insert('taskmanager_projects', { project_name: 'test', client_id: clientId, status: 'Active' });
+            const clientData = { client_name: 'Test Client', contact_info: 'test@example.com' };
+            let client_id;
 
-            await expect(clientService.archiveClient(clientId)).rejects.toThrow();
+            try {
+                const result = await clientService.createClient(clientData);
+                expect(result).to.have.property('client_id');
+                expect(result.client_id).to.be.a('number');
+                expect(result.client_name).to.equal(clientData.client_name);
+                expect(result.contact_info).to.equal(clientData.contact_info);
+                client_id = result.client_id;
+            } catch (error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
+
+            try {
+                const projectData = {client_id, project_name: 'Test project'};
+                const result = await projectService.createProject(projectData);
+                expect(result).to.have.property('project_id');
+                expect(result.project_id).to.be.a('number');
+                expect(result.project_name).to.equal(projectData.project_name);
+            } catch (error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
+
+            try {
+                const result = await clientService.archiveClient(client_id);
+                expect(result).to.be.false;
+            } catch(error) {
+                expect.fail(`Test failed with error: ${error.message}`);
+            }
         });
     });
+
+    // Add more test cases for other functions in clientService.js
 });

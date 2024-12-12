@@ -1,8 +1,7 @@
-import {  parseStringPromise  } from 'xml2js';
-import {  unzipSync  } from 'zlib';
-import fs from 'fs';
-import path from 'path';
-import {  createTask  } from '../services/taskmanager/taskService'; // Assuming taskService is already set up
+import {  parseStringPromise  } from 'xml2js.js';
+import {  unzipSync  } from 'zlib.js';
+
+import {  createTask  } from '../services/taskmanager/taskService.js'; // Assuming taskService is already set up
 
 /**
  * Filters emails to identify DMARC reports.
@@ -111,9 +110,4 @@ const determineActionRequired = (record) => record.disposition !== 'none'; // Si
 const determineSeverity = (record) => (record.disposition === 'reject' ? 'High' : 'Medium');
 const generateUniqueId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
-module.exports = {
-    processDmarcReports,
-    isDmarcEmail,
-    unarchiveBuffer,
-    xmlToJson,
-};
+export { processDmarcReports, isDmarcEmail, unarchiveBuffer, xmlToJson };

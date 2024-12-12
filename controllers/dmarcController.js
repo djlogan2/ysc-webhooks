@@ -1,4 +1,4 @@
-import dmarcService from '../services/dmarcService';
+import dmarcService from '../services/dmarcService.js';
 
 class DMARCController {
     async writeDMARCRecord(req, res) {
@@ -42,4 +42,4 @@ class DMARCController {
     }
 }
 
-module.exports = new DMARCController();
+export default new DMARCController();

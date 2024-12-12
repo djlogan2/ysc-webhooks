@@ -1,7 +1,7 @@
-// import taskService from '../services/taskService';
-// import notificationService from '../services/notificationService';
-import calendarService from '../services/calendarService';
-import { runEvery } from '../services/scheduler';
+// import taskService from '../services/taskService.js';
+// import notificationService from '../services/notificationService.js';
+import calendarService from '../services/calendarService.js';
+import { runEvery } from '../services/scheduler.js';
 
 async function runBackgroundAssistant() {
     runEvery(parseInt(process.env.ASSISTANT_MINUTES || "30"), async () => {
@@ -36,4 +36,4 @@ async function runBackgroundAssistant() {
 }
 
 
-module.exports = { runBackgroundAssistant };
+export { runBackgroundAssistant };

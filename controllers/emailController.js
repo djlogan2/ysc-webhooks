@@ -1,6 +1,6 @@
-import emailService from '../services/emailService';
+import emailService from '../services/emailService.js';
 
-exports.readEmails = async (req, res) => {
+export const readEmails = async (req, res) => {
     try {
         const emails = await emailService.getInbox();
         res.json(emails);
@@ -9,7 +9,7 @@ exports.readEmails = async (req, res) => {
     }
 };
 
-exports.sendEmail = async (req, res) => {
+export const sendEmail = async (req, res) => {
     try {
         const {to, subject, body} = req.body;
         await emailService.sendEmail(to, subject, body);
@@ -19,7 +19,7 @@ exports.sendEmail = async (req, res) => {
     }
 };
 
-exports.deleteEmail = async (req, res) => {
+export const deleteEmail = async (req, res) => {
     try {
         await emailService.deleteEmail(req.params.id);
         res.json({message: 'Email deleted successfully'});
@@ -28,7 +28,7 @@ exports.deleteEmail = async (req, res) => {
     }
 };
 
-exports.archiveEmail = async (req, res) => {
+export const archiveEmail = async (req, res) => {
     try {
         await emailService.archiveEmail(req.params.id);
         res.json({message: 'Email archived successfully'});
@@ -37,7 +37,7 @@ exports.archiveEmail = async (req, res) => {
     }
 };
 
-exports.test = async (req, res) => {
+export const test = async (req, res) => {
     try {
         //await emailService.test(req.params.id);
         const ret = await emailService.getInbox();

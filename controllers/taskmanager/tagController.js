@@ -1,6 +1,6 @@
-import tagService from '../../services/taskmanager/tagService';
+import tagService from '../../services/taskmanager/tagService.js';
 
-exports.getAllTags = async (req, res) => {
+export const getAllTags = async (req, res) => {
     try {
         const tags = await tagService.getAllTags();
         res.status(200).json(tags);
@@ -10,7 +10,7 @@ exports.getAllTags = async (req, res) => {
     }
 };
 
-exports.createTag = async (req, res) => {
+export const createTag = async (req, res) => {
     try {
         const { tag_name } = req.body;
         console.log('Received tag_name:', tag_name); // Debug log
@@ -28,7 +28,7 @@ exports.createTag = async (req, res) => {
     }
 };
 
-exports.updateTag = async (req, res) => {
+export const updateTag = async (req, res) => {
     try {
         const { id } = req.params;
         const { tag_name } = req.body;
@@ -43,7 +43,7 @@ exports.updateTag = async (req, res) => {
     }
 };
 
-exports.deleteTag = async (req, res) => {
+export const deleteTag = async (req, res) => {
     try {
         const { id } = req.params;
         const success = await tagService.deleteTag(id);
@@ -57,7 +57,7 @@ exports.deleteTag = async (req, res) => {
     }
 };
 
-exports.addTagToTask = async (req, res) => {
+export const addTagToTask = async (req, res) => {
     try {
         const { taskId } = req.params;
         const { tag_id } = req.body;
@@ -72,7 +72,7 @@ exports.addTagToTask = async (req, res) => {
     }
 };
 
-exports.removeTagFromTask = async (req, res) => {
+export const removeTagFromTask = async (req, res) => {
     try {
         const { taskId, tagId } = req.params;
         const success = await tagService.removeTagFromTask(taskId, tagId);

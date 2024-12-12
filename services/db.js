@@ -1,5 +1,5 @@
-import mysql from 'mysql2/promise';
-import dbConfig from '../config/dbConfig';
+import mysql from 'mysql2/promise.js';
+import dbConfig from '../config/dbConfig.js';
 const config = {
     ...dbConfig,
     waitForConnections: true,

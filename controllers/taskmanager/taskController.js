@@ -1,6 +1,6 @@
-import taskService from '../../services/taskmanager/taskService';
+import taskService from '../../services/taskmanager/taskService.js';
 
-exports.getAllTasks = async (req, res) => {
+export const getAllTasks = async (req, res) => {
     try {
         const tasks = await taskService.getAllTasks(req.query);
         res.status(200).json(tasks);
@@ -10,7 +10,7 @@ exports.getAllTasks = async (req, res) => {
     }
 };
 
-exports.getTaskById = async (req, res) => {
+export const getTaskById = async (req, res) => {
     try {
         const task = await taskService.getTaskById(req.params.id);
         if (!task) {
@@ -23,7 +23,7 @@ exports.getTaskById = async (req, res) => {
     }
 };
 
-exports.createTask = async (req, res) => {
+export const createTask = async (req, res) => {
     try {
         const task = await taskService.createTask(req.body);
         res.status(201).json(task);
@@ -33,7 +33,7 @@ exports.createTask = async (req, res) => {
     }
 };
 
-exports.updateTask = async (req, res) => {
+export const updateTask = async (req, res) => {
     try {
         const task = await taskService.updateTask(req.params.id, req.body);
         if (!task) {
@@ -46,7 +46,7 @@ exports.updateTask = async (req, res) => {
     }
 };
 
-exports.archiveTask = async (req, res) => {
+export const archiveTask = async (req, res) => {
     try {
         const success = await taskService.archiveTask(req.params.id);
         if (!success) {
@@ -59,7 +59,7 @@ exports.archiveTask = async (req, res) => {
     }
 };
 
-exports.completeTask = async (req, res) => {
+export const completeTask = async (req, res) => {
     try {
         const task = await taskService.completeTask(req.params.id);
         if (!task) {

@@ -1,4 +1,4 @@
-import db from './db'; // Assuming you have a db utility for queries
+import db from './db.js'; // Assuming you have a db utility for queries
 
 // Service to save analytics data
 async function saveAnalyticsData(data) {
@@ -40,4 +40,4 @@ async function queryAnalyticsData(filters) {
     return rows;
 }
 
-module.exports = { saveAnalyticsData, queryAnalyticsData };
+export { saveAnalyticsData, queryAnalyticsData };
