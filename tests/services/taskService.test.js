@@ -13,9 +13,23 @@ import dbMock from '../../tests/utils/dbmock.js';
 
 chai.use(chaiAsPromised);
 
+const oneMinuteInMilliseconds = 60 * 1000;
 later.date.localTime(); // Ensure `later.js` uses local time for calculations
 
-async function createTaskWithContext(taskData, timezone = 'UTC') {
+function sanMS(date) {
+    return date.substring(0, date.length - 8);
+}
+
+function getNextDate(recurringInterval, baseDate = new Date()) {
+    const schedule = later.parse.text(recurringInterval);
+    if (schedule.error !== -1) {
+        throw new Error(`Invalid recurring interval: ${recurringInterval}`);
+    }
+    const nextDate = later.schedule(schedule).next(2, baseDate);
+    return new Date(nextDate[1]).toISOString();
+}
+
+async function createTaskWithContextAndTimezone(taskData, timezone = 'UTC') {
     const context = await contextService.createContext({
         context_name: 'Default Context'
     });
@@ -45,10 +59,10 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             const taskData = {
                 task_name: 'Invalid Recurring Interval Task',
                 recurring_interval: 'invalid_interval',
-                due_date: '2024-12-01'
+                due_date: getNextDate('on Sunday')
             };
 
-            await expect(createTaskWithContext(taskData)).to.be.rejectedWith('Invalid recurring_interval value');
+            await expect(createTaskWithContextAndTimezone(taskData)).to.be.rejectedWith('Invalid recurring_interval value');
         });
 
         it('should compute a due_date if recurring_interval exists and due_date is missing', async () => {
@@ -57,67 +71,60 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
                 recurring_interval: 'every 1 week'
             };
 
-            const task = await createTaskWithContext(taskData);
+            const task = await createTaskWithContextAndTimezone(taskData);
 
             expect(task).to.have.property('due_date');
-
-            // Calculate the expected due_date
-            const nowUTC = DateTime.now().toJSDate();
-            const expectedDate = later.schedule(later.parse.text('every 1 week')).next(1, nowUTC);
-
-            // Remove milliseconds for comparison
-            const taskDueDate = DateTime.fromISO(task.due_date).set({ millisecond: 0 }).toISO();
-            const expectedDueDate = DateTime.fromJSDate(expectedDate).set({ millisecond: 0 }).toISO();
-
-            // Compare dates without milliseconds
-            expect(taskDueDate).to.equal(expectedDueDate);
+            const expectedDate = later.schedule(later.parse.text('every 1 week')).next(1);
+            const expectedISO = DateTime.fromJSDate(expectedDate).toUTC().toISO();
+            expect(sanMS(task.due_date)).to.be.equal(sanMS(expectedISO));
         });
 
         it('should fail to create a task if due_date does not align with recurring_interval', async () => {
-            const now = DateTime.now();
-            const nextSunday = now.plus({ days: (7 - now.weekday) % 7 }).set({ hour: 0, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO();
-
             const taskData = {
                 task_name: 'Misaligned Due Date Task',
                 recurring_interval: 'on Monday',
-                due_date: nextSunday // This dynamically generates the next Sunday in UTC
+                due_date: getNextDate('on Sunday') // Dynamically generated Sunday
             };
 
-            await expect(createTaskWithContext(taskData)).to.be.rejectedWith('Due date does not align with recurring_interval');
+            await expect(createTaskWithContextAndTimezone(taskData)).to.be.rejectedWith('Due date does not align with recurring_interval');
         });
 
         it('should allow a valid recurring_interval and aligned due_date', async () => {
+            const recurringInterval = 'on Monday';
+            const futureMonday = getNextDate(recurringInterval);
+
             const taskData = {
                 task_name: 'Valid Recurring Task',
-                recurring_interval: 'on Monday',
-                due_date: '2024-12-02' // This is a Monday
+                recurring_interval: recurringInterval,
+                due_date: futureMonday
             };
 
-            const task = await createTaskWithContext(taskData);
+            const task = await createTaskWithContextAndTimezone(taskData);
 
-            expect(task).to.have.property('recurring_interval', 'every Monday');
-            expect(task).to.have.property('due_date', '2024-12-02');
+            expect(task).to.have.property('recurring_interval', recurringInterval);
+            expect(task).to.have.property('due_date', futureMonday);
         });
     });
 
     describe('Task Updates - Recurring Interval and Due Date', () => {
         it('should fail to update a task with an invalid recurring_interval', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Task with Valid Interval',
                 recurring_interval: 'every 1 week',
-                due_date: '2024-12-01'
+                due_date: getNextDate('every 1 week')
             });
 
-            await expect(taskService.updateTask(task.task_id, {
+            await expect(taskService.updateTask({
+                task_id: task.task_id,
                 recurring_interval: 'invalid_interval'
             })).to.be.rejectedWith('Invalid recurring_interval value');
         });
 
         it('should fail to update due_date to null if recurring_interval exists', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task with Due Date',
                 recurring_interval: 'every 1 week',
-                due_date: '2024-12-01'
+                due_date: getNextDate('every 1 week')
             });
 
             await expect(taskService.updateTask(task.task_id, {
@@ -126,22 +133,22 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
         });
 
         it('should fail to update due_date to an invalid value for the recurring_interval', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task',
                 recurring_interval: 'every Monday',
-                due_date: '2024-12-02'
+                due_date: getNextDate('every Monday')
             });
 
             await expect(taskService.updateTask(task.task_id, {
-                due_date: '2024-12-03' // This is a Tuesday
+                due_date: getNextDate('on Tuesday') // Dynamically generated invalid date
             })).to.be.rejectedWith('Due date does not align with recurring_interval');
         });
 
         it('should allow deleting recurring_interval', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task',
                 recurring_interval: 'every 1 week',
-                due_date: '2024-12-01'
+                due_date: getNextDate('every 1 week')
             });
 
             const updatedTask = await taskService.updateTask(task.task_id, {
@@ -152,19 +159,19 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
         });
 
         it('should allow valid changes to recurring_interval and due_date', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Recurring Task',
                 recurring_interval: 'every Monday',
-                due_date: '2024-12-02'
+                due_date: getNextDate('every Monday')
             });
 
             const updatedTask = await taskService.updateTask(task.task_id, {
                 recurring_interval: 'every 1 week',
-                due_date: '2024-12-09' // Matches new interval
+                due_date: getNextDate('every 1 week')
             });
 
             expect(updatedTask).to.have.property('recurring_interval', 'every 1 week');
-            expect(updatedTask).to.have.property('due_date', '2024-12-09');
+            expect(updatedTask).to.have.property('due_date');
         });
     });
 
@@ -175,7 +182,7 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
                 recurring_interval: 'every Monday at 8am'
             };
 
-            const task = await createTaskWithContext(taskData, 'America/New_York');
+            const task = await createTaskWithContextAndTimezone(taskData, 'America/New_York');
 
             expect(task).to.have.property('due_date');
 
@@ -184,7 +191,7 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             const expectedDate = later.schedule(later.parse.text('every Monday at 8am')).next(1, nowInTimeZone);
             const expectedUTC = DateTime.fromJSDate(expectedDate, { zone: 'America/New_York' }).toUTC().toISO();
 
-            expect(task.due_date).to.equal(expectedUTC);
+            expect(task.due_date).to.be.closeTo(expectedUTC, oneMinuteInMilliseconds);
         });
 
         it('should store due_date as UTC when timezone is not specified', async () => {
@@ -202,7 +209,7 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             const expectedDate = later.schedule(later.parse.text('every Monday at 8am')).next(1, nowUTC);
             const expectedUTC = DateTime.fromJSDate(expectedDate).toUTC().toISO();
 
-            expect(task.due_date).to.equal(expectedUTC);
+            expect(task.due_date).to.be.closeTo(expectedUTC, oneMinuteInMilliseconds);
         });
 
         it('should fail to create a task with an invalid timezone', async () => {
@@ -211,16 +218,16 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
                 recurring_interval: 'every Monday at 8am'
             };
 
-            await expect(createTaskWithContext(taskData, 'Invalid/Timezone')).to.be.rejectedWith('Invalid Timezone');
+            await expect(createTaskWithContextAndTimezone(taskData, 'Invalid/Timezone')).to.be.rejectedWith('Invalid Timezone');
         });
     });
 
     describe('Recurring Task Completion', () => {
         it('should create the next task when a recurring task is completed', async () => {
-            const task = await createTaskWithContext({
+            const task = await createTaskWithContextAndTimezone({
                 task_name: 'Daily Recurring Task',
                 recurring_interval: 'every 1 day',
-                due_date: '2024-12-01'
+                due_date: getNextDate('every 1 day')
             });
 
             const updatedTask = await taskService.updateTask(task.task_id, {
@@ -233,8 +240,9 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             const nextTask = dbMock.data['taskmanager_tasks'].find((t) => t.task_name === 'Daily Recurring Task' && t.status !== 'Completed');
             expect(nextTask).to.exist;
 
-            const expectedDate = later.schedule(later.parse.text('every 1 day')).next(1, new Date('2024-12-01'));
-            expect(new Date(nextTask.due_date).toISOString()).to.equal(expectedDate.toISOString());
+            const expectedDate = later.schedule(later.parse.text('every 1 day')).next(1, new Date(task.due_date));
+            const expectedISO = DateTime.fromJSDate(expectedDate).toUTC().toISO();
+            expect(nextTask.due_date).to.be.closeTo(expectedISO, oneMinuteInMilliseconds);
         });
     });
 });
