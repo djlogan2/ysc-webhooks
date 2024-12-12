@@ -54,7 +54,13 @@ class DBMock {
                     }
                 }
             }
+            if (fieldSchema.enum && row[field] !== undefined && row[field] !== null) {
+                if (!fieldSchema.enum.includes(row[field])) {
+                    throw new Error(`Invalid value for field ${field} in table ${table}: ${row[field]}. Allowed values: ${fieldSchema.enum.join(', ')}.`);
+                }
+            }
         }
+
 
         // Handle auto-increment primary key
         if (schema.primaryKey) {
@@ -147,8 +153,14 @@ class DBMock {
     async query(sql, values) {
         console.log(`query : ${sql} : ${JSON.stringify(values)}`);
         const parser = new Parser();
-        const ast = parser.astify(sql);
+        let ast = parser.astify(sql);
         let index = 0;
+
+        if(Array.isArray(ast)) {
+            if(ast.length > 1)
+                throw new Error('What in the world do we do here? I dont know why its even creating an array!');
+            ast = ast[0];
+        }
 
         if (ast.type === 'insert') {
             const table = ast.table[0]?.table || ast.table.table;
@@ -160,8 +172,8 @@ class DBMock {
                 });
             else
                 ast.values[0].value.forEach((field, idx) => {
-                row[ast.columns[idx]] = field.value;
-            });
+                    row[ast.columns[idx]] = field.value;
+                });
             const result = await this.insert(table, row);
             return [result];
         }
@@ -212,6 +224,9 @@ class DBMock {
                     if (!schema.fields[column]) {
                         throw new Error(`Field ${column} does not exist in table ${table}.`);
                     }
+                    if (schema.fields[column].enum && value !== null)
+                        if (!schema.fields[column].enum.includes(value))
+                            throw new Error(`Invalid value for field ${column} in table ${table}: ${value}. Allowed values: ${schema.fields[column].enum.join(', ')}.`);
                     row[column] = value;
                 });
             });
@@ -254,12 +269,17 @@ function generateSchemaFromDDL(ddlPath) {
                 const isPrimaryKey = definition.primary_key || false;
                 const isAutoIncrement = definition.auto_increment || false;
                 const defaultValue = definition.default_val?.value?.value ?? null;
+                let enumValues = null;
+
+                if (definition?.definition?.expr?.type === 'expr_list')
+                    enumValues = definition.definition.expr.value.map(val => val.value);
 
                 schema[tableName].fields[fieldName] = {
                     type: fieldType,
                     nullable: isNullable,
                     autoIncrement: isAutoIncrement,
                     default: defaultValue,
+                    enum: enumValues,
                 };
 
                 if (isPrimaryKey) {

@@ -46,58 +46,39 @@ export const getProjectById = async (projectId) => {
 
 // Update a project
 export const updateProject = async (projectData) => {
+    if (!projectData.project_id) {
+        throw new Error('Project id not found');
+    }
+
+    const projectId = projectData.project_id;
+
+    // Custom validations first
+    if (projectData.archived !== undefined && !!projectData.archived) {
+        const count = await pool.query(
+            'SELECT COUNT(*) FROM dj.taskmanager_tasks WHERE project_id = ? AND status != "Completed"',
+            [projectId]
+        );
+        if (!!count?.[0]?.[0]?.['COUNT(*)']) {
+            throw new Error('Cannot archive project with incomplete tasks');
+        }
+    }
+
+    // Dynamic query building
     const fields = [];
     const values = [];
-    let projectId;
 
-    // Dynamically build query parts for fields that are being updated
-    if(!projectData.project_id) {
-        throw Error('Project id not found');
-    }
-
-    projectId = projectData.project_id;
-
-    if (projectData.project_name) {
-        fields.push('project_name = ?');
-        values.push(projectData.project_name);
-    }
-    if (projectData.description !== undefined) {
-        fields.push('description = ?');
-        values.push(projectData.description);
-    }
-    if (projectData.client_id) {
-        fields.push('client_id = ?');
-        values.push(projectData.client_id);
-    }
-    if (projectData.status) {
-        fields.push('status = ?');
-        values.push(projectData.status);
-    }
-    if (projectData.start_date) {
-        fields.push('start_date = ?');
-        values.push(projectData.start_date);
-    }
-    if (projectData.due_date) {
-        fields.push('due_date = ?');
-        values.push(projectData.due_date);
-    }
-
-    if(projectData.archived !== undefined) {
-        if(!!projectData.archived) {
-            const count = await pool.query('SELECT COUNT(*) FROM dj.taskmanager_tasks WHERE project_id = ? AND status != "Completed"', [projectId]);
-            if (!!count?.[0]?.[0]?.['COUNT(*)'])
-                throw Error('Cannot archive project with incomplete tasks');
+    for (const [key, value] of Object.entries(projectData)) {
+        if (key !== 'project_id' && value !== undefined) {
+            fields.push(`${key} = ?`);
+            values.push(value);
         }
-        fields.push('archived = ?');
-        values.push(projectData.archived);
     }
 
+    // Ensure there are fields to update
     if (fields.length === 0) {
         throw new Error('No fields to update');
     }
 
-    // Add updated_at and project_id
-    fields.push('updated_at = NOW()');
     values.push(projectId);
 
     const query = `UPDATE dj.taskmanager_projects SET ${fields.join(', ')} WHERE project_id = ?`;
