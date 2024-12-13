@@ -115,13 +115,13 @@ export const createTask = async (taskData, timezone = 'UTC') => {
                     .toISO(); // Preserve full timestamp
             } else {
                 // Validate existing `due_date` aligns with recurring_interval
-                const occurrences = later.schedule(schedule).next(5, DateTime.now().setZone(timezone).toJSDate());
-                const isValidDate = occurrences.some(
-                    (date) =>
-                        DateTime.fromJSDate(date, { zone: timezone })
-                            .toUTC()
-                            .toISO() === DateTime.fromISO(taskData.due_date).toUTC().toISO()
-                );
+                const isValidDate = later.schedule(schedule).isValid(new Date(taskData.due_date));//.next(5, DateTime.now().setZone(timezone).toJSDate());
+                // const isValidDate = occurrences.some(
+                //     (date) =>
+                //         DateTime.fromJSDate(date, { zone: timezone })
+                //             .toUTC()
+                //             .toISO() === DateTime.fromISO(taskData.due_date).toUTC().toISO()
+                // );
                 if (!isValidDate) {
                     throw new Error('Due date does not align with recurring_interval.');
                 }
@@ -166,33 +166,39 @@ export const createTask = async (taskData, timezone = 'UTC') => {
 };
 
 // Update a task by ID
-export const updateTask = async (taskObject) => {
+export const updateTask = async (taskObject, timezone = 'UTC') => {
     if (!taskObject.task_id) {
         throw new Error('Task ID is required for updating a task.');
     }
 
     const taskId = taskObject.task_id;
 
-    // Check if the task exists if recurring_interval is provided
-    let oldRecurringInterval = null;
-    let oldDueDate = null;
+    // Fetch the current task record
+    const [rows] = await pool.query(
+        'SELECT status, recurring_interval, due_date, task_name, description, project_id, context_id, priority_id FROM dj.taskmanager_tasks WHERE task_id = ?',
+        [taskId]
+    );
 
-    if (taskObject.recurring_interval !== undefined || taskObject.due_date !== undefined) {
-        const [rows] = await pool.query(
-            'SELECT recurring_interval, due_date FROM dj.taskmanager_tasks WHERE task_id = ?',
-            [taskId]
-        );
-
-        if (rows.length === 0) {
-            throw new Error('Task not found');
-        }
-
-        oldRecurringInterval = rows[0].recurring_interval;
-        oldDueDate = rows[0].due_date;
+    if (rows.length === 0) {
+        return null;
+        // throw new Error('Task not found');
     }
+
+    const currentTask = rows[0];
+    const isTaskCompleted = currentTask.status === 'Completed';
+
+    const oldRecurringInterval = currentTask.recurring_interval;
+    const oldDueDate = currentTask.due_date;
 
     const newRecurringInterval = taskObject.recurring_interval !== undefined ? taskObject.recurring_interval : oldRecurringInterval;
     const newDueDate = taskObject.due_date !== undefined ? taskObject.due_date : oldDueDate;
+
+    // Restrict updates to completed tasks unless status is explicitly being uncompleted
+    if (isTaskCompleted) {
+        if (!taskObject.status || taskObject.status === 'Completed') {
+            throw new Error('Cannot modify a completed task without uncompleting it.');
+        }
+    }
 
     // Validate recurring_interval and due_date if either changes
     if (newRecurringInterval !== oldRecurringInterval || newDueDate !== oldDueDate) {
@@ -202,16 +208,47 @@ export const updateTask = async (taskObject) => {
                 throw new Error(`Invalid recurring_interval: ${newRecurringInterval}`);
             }
 
-            const validDates = later.schedule(schedule).next(5, new Date());
-            const isValidDueDate = validDates.some(
-                (date) => new Date(date).toISOString().split('T')[0] === new Date(newDueDate).toISOString().split('T')[0]
-            );
+            // Calculate valid due dates using the timezone
+            const nowInTimezone = DateTime.now().setZone(timezone).toJSDate();
+            const isValidDueDate = later.schedule(schedule).isValid(newDueDate); //.next(5, nowInTimezone);
+            // const isValidDueDate = validDates.some(
+            //     (date) => DateTime.fromJSDate(date).toUTC().toISO() === newDueDate
+            // );
 
             if (!isValidDueDate) {
                 throw new Error(
                     'Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.'
                 );
             }
+        }
+    }
+
+    // Check if the task is being marked as Completed and handle recurring logic
+    if (taskObject.status === 'Completed' && oldRecurringInterval) {
+        const schedule = later.parse.text(oldRecurringInterval);
+        if (schedule.error !== -1) {
+            throw new Error(`Invalid recurring_interval: ${oldRecurringInterval}`);
+        }
+
+        const nextDates = later.schedule(schedule).next(2, new Date(oldDueDate));
+        const nextDueDate = nextDates.length > 1 ? nextDates[1] : null;
+
+        if (nextDueDate) {
+            // Create the next recurring task
+            await pool.query(
+                `INSERT INTO dj.taskmanager_tasks 
+                 (task_name, description, due_date, project_id, context_id, priority_id, recurring_interval)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    currentTask.task_name,
+                    currentTask.description,
+                    DateTime.fromJSDate(nextDueDate).toUTC().toISO(), // Store as UTC
+                    currentTask.project_id,
+                    currentTask.context_id,
+                    currentTask.priority_id,
+                    oldRecurringInterval
+                ]
+            );
         }
     }
 
@@ -230,9 +267,9 @@ export const updateTask = async (taskObject) => {
         throw new Error('No fields to update');
     }
 
+    const query = `UPDATE dj.taskmanager_tasks SET ${fields.join(', ')} WHERE task_id = ?`;
     values.push(taskId);
 
-    const query = `UPDATE dj.taskmanager_tasks SET ${fields.join(', ')} WHERE task_id = ?`;
     const [result] = await pool.query(query, values);
 
     return result.affectedRows > 0 ? { task_id: taskId, ...taskObject } : null;

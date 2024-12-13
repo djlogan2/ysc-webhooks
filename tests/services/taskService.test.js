@@ -20,13 +20,13 @@ function sanMS(date) {
     return date.substring(0, date.length - 8);
 }
 
-function getNextDate(recurringInterval, baseDate = new Date()) {
+function getNextDate(recurringInterval, baseDate = new Date(), count = 1) {
     const schedule = later.parse.text(recurringInterval);
     if (schedule.error !== -1) {
         throw new Error(`Invalid recurring interval: ${recurringInterval}`);
     }
-    const nextDate = later.schedule(schedule).next(2, baseDate);
-    return new Date(nextDate[1]).toISOString();
+    const nextDate = later.schedule(schedule).next(1 + count, baseDate);
+    return new Date(nextDate[count]).toISOString();
 }
 
 async function createTaskWithContextAndTimezone(taskData, timezone = 'UTC') {
@@ -230,11 +230,12 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
         it('should create the next task when a recurring task is completed', async () => {
             const task = await createTaskWithContextAndTimezone({
                 task_name: 'Daily Recurring Task',
-                recurring_interval: 'every 1 day',
-                due_date: getNextDate('every 1 day')
+                recurring_interval: 'at 8:00 am',
+                due_date: getNextDate('at 8:00 am')
             });
 
-            const updatedTask = await taskService.updateTask(task.task_id, {
+            const updatedTask = await taskService.updateTask({
+                task_id: task.task_id,
                 status: 'Completed'
             });
 
@@ -244,9 +245,10 @@ describe('Task Service - Recurring Interval and Due Date Tests', () => {
             const nextTask = dbMock.data['taskmanager_tasks'].find((t) => t.task_name === 'Daily Recurring Task' && t.status !== 'Completed');
             expect(nextTask).to.exist;
 
-            const expectedDate = later.schedule(later.parse.text('every 1 day')).next(1, new Date(task.due_date));
+            const expectedDates = later.schedule(later.parse.text('at 8:00 am')).next(2, new Date(task.due_date));
+            const expectedDate = expectedDates.length > 1 ? expectedDates[1] : null;
             const expectedISO = DateTime.fromJSDate(expectedDate).toUTC().toISO();
-            expect(nextTask.due_date).to.be.closeTo(expectedISO, oneMinuteInMilliseconds);
+            expect(sanMS(nextTask.due_date)).to.be.equal(sanMS(expectedISO));
         });
     });
 });
@@ -381,6 +383,188 @@ describe('Task Service Tests', () => {
                 task_name: 'Non-existent Task'
             });
             expect(result).to.be.null;
+        });
+    });
+});
+
+describe('Task Updates - Completed Task Behavior', () => {
+    let createdTask;
+    let queryStub;
+
+    beforeEach(async () => {
+        queryStub = sinon.stub(pool, 'query').callsFake((...args) => dbMock.query(...args));
+        dbMock.resetDatabase();
+
+        // Create a task with valid initial data
+        createdTask = await createTaskWithContextAndTimezone({
+            task_name: 'Initial Task',
+            recurring_interval: 'at 8:00 am on Monday',
+            due_date: getNextDate('at 8:00 am on Monday')
+        });
+
+        // Mark the task as completed
+        await taskService.updateTask({
+            task_id: createdTask.task_id,
+            status: 'Completed'
+        });
+
+        // Verify the task is marked as completed
+        const [rows] = await pool.query(
+            'SELECT * FROM dj.taskmanager_tasks WHERE task_id = ?',
+            [createdTask.task_id]
+        );
+
+        expect(rows[0]).to.have.property('status', 'Completed');
+    });
+
+    afterEach(() => {
+        queryStub.restore();
+    });
+
+    it('should fail to update a completed task without changing its status', async () => {
+        await expect(
+            taskService.updateTask({
+                task_id: createdTask.task_id,
+                task_name: 'Updated Name'
+            })
+        ).to.be.rejectedWith('Cannot modify a completed task without uncompleting it.');
+    });
+
+    it('should allow updates to a completed task when uncompleting it', async () => {
+        const updatedTask = await taskService.updateTask({
+            task_id: createdTask.task_id,
+            status: 'Next Action',
+            task_name: 'Updated Name'
+        });
+
+        expect(updatedTask).to.have.property('status', 'Next Action');
+        expect(updatedTask).to.have.property('task_name', 'Updated Name');
+    });
+
+    it('should allow updating a non-completed task', async () => {
+        // First, uncomplete the task
+        await taskService.updateTask({
+            task_id: createdTask.task_id,
+            status: 'Next Action'
+        });
+
+        // Then, update other fields
+        const date = getNextDate('at 8:00 am on Monday', new Date(), 8);
+        const updatedTask = await taskService.updateTask({
+            task_id: createdTask.task_id,
+            task_name: 'Non-Completed Task Update',
+            due_date: date
+        });
+
+        expect(updatedTask).to.have.property('task_name', 'Non-Completed Task Update');
+        expect(updatedTask).to.have.property('due_date', date);
+    });
+
+    it('should fail if trying to update both completed status and invalid fields', async () => {
+        await expect(
+            taskService.updateTask({
+                task_id: createdTask.task_id,
+                status: 'Next Action',
+                recurring_interval: 'invalid interval'
+            })
+        ).to.be.rejectedWith('Invalid recurring_interval: invalid interval');
+    });
+
+    it('should allow valid updates while uncompleting the task', async () => {
+        const updatedTask = await taskService.updateTask({
+            task_id: createdTask.task_id,
+            status: 'Next Action',
+            recurring_interval: 'every 2 weeks',
+            due_date: getNextDate('every 2 weeks')
+        });
+
+        expect(updatedTask).to.have.property('status', 'Next Action');
+        expect(updatedTask).to.have.property('recurring_interval', 'every 2 weeks');
+        expect(updatedTask).to.have.property('due_date', getNextDate('every 2 weeks'));
+    });
+});
+
+describe('Recurring Interval Tests', () => {
+    let queryStub;
+
+    beforeEach(() => {
+        queryStub = sinon.stub(pool, 'query').callsFake((...args) => dbMock.query(...args));
+        dbMock.resetDatabase();
+    });
+
+    afterEach(() => {
+        queryStub.restore();
+    });
+
+    const recurringTestCases = [
+        {
+            recurring_interval: 'on the first day of the week',
+            due_date: '2025-12-07T00:00:00-07:00', // Sunday Mountain Time
+            expected_dates: [
+                '2025-12-07T07:00:00Z', // First Sunday UTC
+                '2025-12-14T07:00:00Z'  // Next Sunday UTC
+            ]
+        },
+        {
+            recurring_interval: 'on the last day of the month',
+            due_date: '2025-12-31T00:00:00-07:00', // Last day of December Mountain Time
+            expected_dates: [
+                '2025-12-31T07:00:00Z', // December UTC
+                '2026-01-31T07:00:00Z'  // Next month UTC
+            ]
+        },
+        {
+            recurring_interval: 'at 3:00 pm to 6:00 pm',
+            due_date: '2025-12-25T15:00:00-07:00', // 3pm Mountain Time
+            expected_dates: [
+                '2025-12-25T22:00:00Z', // 3pm UTC
+                '2025-12-25T23:00:00Z', // 4pm UTC
+                '2025-12-26T22:00:00Z'  // Next day 3pm UTC
+            ]
+        },
+        {
+            recurring_interval: 'every 5 mins every weekend',
+            due_date: '2025-12-06T00:00:00-07:00', // Saturday Mountain Time
+            expected_dates: [
+                '2025-12-06T07:00:00Z', // Saturday 12:00am UTC
+                '2025-12-06T07:05:00Z', // 5 mins later
+                '2025-12-07T07:00:00Z', // Sunday 12:00am UTC
+                '2025-12-07T23:55:00Z', // Last occurrence on Sunday UTC
+                '2025-12-13T07:00:00Z'  // Next Saturday 12:00am UTC
+            ]
+        }
+    ];
+
+    recurringTestCases.forEach(({ recurring_interval, due_date, expected_dates }) => {
+        it(`should handle "${recurring_interval}" correctly`, async () => {
+            // Create the task
+            const task = await createTaskWithContextAndTimezone({
+                task_name: `Test Task for "${recurring_interval}"`,
+                recurring_interval,
+                due_date
+            }, 'America/Denver');
+
+            // Verify the initial due_date
+            expect(sanMS(task.due_date)).to.be.equal(sanMS(expected_dates[0]));
+
+            // Verify subsequent due dates for completions
+            for (let i = 1; i < expected_dates.length; i++) {
+                // Mark the task as completed
+                const updatedTask = await taskService.updateTask({
+                    task_id: task.task_id,
+                    status: 'Completed'
+                });
+
+                expect(updatedTask).to.have.property('status', 'Completed');
+
+                // Verify the next task
+                const nextTask = dbMock.data['taskmanager_tasks'].find((t) => t.task_name === task.task_name && t.status !== 'Completed');
+                expect(nextTask).to.exist;
+                expect(sanMS(nextTask.due_date)).to.be.equal(sanMS(expected_dates[i]));
+
+                // Update the current task to the next task for the next iteration
+                task.task_id = nextTask.task_id;
+            }
         });
     });
 });
