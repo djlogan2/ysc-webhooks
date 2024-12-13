@@ -1,6 +1,6 @@
-import later from 'later';
 import { DateTime } from 'luxon';
 import pool from '../db.js';
+import {CustomLater} from "../../utils/customLater.js";
 
 function isValidTimezone(timezone) {
     try {
@@ -77,61 +77,41 @@ const getOrCreateMiscellaneousProject = async () => {
     return result.insertId;
 };
 
-export const createTask = async (taskData, timezone = 'UTC') => {
-    // Validate required fields
+export const createTask = async (taskData, timezone) => {
     if (!taskData.task_name || !taskData.context_id) {
         throw new Error('Task name and context ID are required.');
     }
 
-    // Assign to a miscellaneous project if no project_id is provided
     if (!taskData.project_id) {
         taskData.project_id = await getOrCreateMiscellaneousProject();
     }
 
-    // Validate and process recurring_interval
     if (taskData.recurring_interval) {
-        try {
-            const schedule = later.parse.text(taskData.recurring_interval);
-            if (schedule.error !== -1) {
-                throw new Error('Invalid recurring_interval value.');
-            }
-
-            // Compute `due_date` if missing
-            if (!taskData.due_date) {
-                if(!isValidTimezone(timezone))
-                    throw new Error('Invalid Timezone');
-                // Use Luxon to get the current time in the user's time zone
-                const nowInTimeZone = DateTime.now().setZone(timezone).toJSDate();
-
-                // Use `later.js` to calculate the next occurrence
-                const nextDate = later.schedule(schedule).next(1, nowInTimeZone);
-                if (!nextDate) {
-                    throw new Error('Unable to compute due_date from recurring_interval.');
-                }
-
-                // Convert the calculated time back to UTC for storage
-                taskData.due_date = DateTime.fromJSDate(nextDate, { zone: timezone })
-                    .toUTC()
-                    .toISO(); // Preserve full timestamp
-            } else {
-                // Validate existing `due_date` aligns with recurring_interval
-                const isValidDate = later.schedule(schedule).isValid(new Date(taskData.due_date));//.next(5, DateTime.now().setZone(timezone).toJSDate());
-                // const isValidDate = occurrences.some(
-                //     (date) =>
-                //         DateTime.fromJSDate(date, { zone: timezone })
-                //             .toUTC()
-                //             .toISO() === DateTime.fromISO(taskData.due_date).toUTC().toISO()
-                // );
-                if (!isValidDate) {
-                    throw new Error('Due date does not align with recurring_interval.');
-                }
-            }
-        } catch (error) {
-            throw new Error(`Error with recurring_interval: ${error.message}`);
+        const later = new CustomLater(timezone);
+        const schedule = later.parseText(taskData.recurring_interval);
+        if (schedule.error !== -1) {
+            throw new Error('Invalid recurring_interval value.');
         }
+
+        // Convert due_date from UTC to the user's time zone for validation
+        let userDueDate = null;
+        if (taskData.due_date) {
+            if (!later.isValid(schedule, userDueDate)) {
+                throw new Error('Due date does not align with recurring_interval.');
+            }
+        } else {
+            // Compute due_date if missing
+            const nextDate = later.next(schedule,1, new Date());
+            if (!nextDate) {
+                throw new Error('Unable to compute due_date from recurring_interval.');
+            }
+            userDueDate = nextDate;
+        }
+
+        // Convert userDueDate back to UTC for storage
+        taskData.due_date = DateTime.fromJSDate(userDueDate, { zone: timezone }).toUTC().toISO();
     }
 
-    // Ensure `start_date` is before or equal to `due_date`
     if (taskData.start_date && taskData.due_date) {
         const startDate = new Date(taskData.start_date);
         const dueDate = new Date(taskData.due_date);
@@ -140,7 +120,6 @@ export const createTask = async (taskData, timezone = 'UTC') => {
         }
     }
 
-    // Insert the task into the database
     const [result] = await pool.query(
         `INSERT INTO dj.taskmanager_tasks
          (task_name, description, due_date, start_date, project_id, recurring_interval, context_id, priority_id)
@@ -157,13 +136,10 @@ export const createTask = async (taskData, timezone = 'UTC') => {
         ]
     );
 
-    // Retrieve and return the created task
-    const [rows] = await pool.query(
-        `SELECT * FROM dj.taskmanager_tasks WHERE task_id = ?`,
-        [result.insertId]
-    );
+    const [rows] = await pool.query(`SELECT * FROM dj.taskmanager_tasks WHERE task_id = ?`, [result.insertId]);
     return rows[0];
 };
+
 
 // Update a task by ID
 export const updateTask = async (taskObject, timezone = 'UTC') => {
@@ -209,13 +185,17 @@ export const updateTask = async (taskObject, timezone = 'UTC') => {
             }
 
             // Calculate valid due dates using the timezone
-            const nowInTimezone = DateTime.now().setZone(timezone).toJSDate();
-            const isValidDueDate = later.schedule(schedule).isValid(newDueDate); //.next(5, nowInTimezone);
+            if(!isValidTimezone(timezone))
+                throw new Error('Invalid Timezone');
+            else if(!newDueDate)
+                throw new Error('Cannot set due date to null on a recurring task');
+            const nowInTimezone = DateTime.fromISO(newDueDate, { zone: 'UTC' }).setZone(timezone).toJSDate();
+            const isValidDueDate = later.schedule(schedule).isValid(nowInTimezone); //.next(5, nowInTimezone);
             // const isValidDueDate = validDates.some(
             //     (date) => DateTime.fromJSDate(date).toUTC().toISO() === newDueDate
             // );
 
-            if (!isValidDueDate) {
+            if (!newDueDate || !isValidDueDate) {
                 throw new Error(
                     'Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.'
                 );

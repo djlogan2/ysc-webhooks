@@ -175,6 +175,7 @@ class DBMock {
                     row[ast.columns[idx]] = field.value;
                 });
             const result = await this.insert(table, row);
+            console.log(`INSERT result: ${JSON.stringify([result])}`);
             return [result];
         }
 
@@ -194,6 +195,7 @@ class DBMock {
             if (!results?.length) {
                 return [[]];
             }
+            console.log(`SELECT results: ${JSON.stringify([results])}`);
             return [results];
         }
 
@@ -231,6 +233,7 @@ class DBMock {
                 });
             });
 
+            console.log(`UPDATE results: ${JSON.stringify([{affectedRows: results.length}])}`);
             return [{affectedRows: results.length}];
         }
 
