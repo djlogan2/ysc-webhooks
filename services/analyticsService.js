@@ -15,7 +15,7 @@ async function saveAnalyticsData(data) {
         data.url || null,
         data.referrer || null,
         data.userAgent || null,
-        data.deviceInfo?.screenSize || null,
+        data.screenSize || null,
         data.language || null,
         data.timestamp ? new Date(data.timestamp) : null,
         data.eventCategory || null,
@@ -26,14 +26,14 @@ async function saveAnalyticsData(data) {
         data.userId || null,
         data.sessionId || null,
         data.ipAddress || null,
-        data.performanceMetrics?.loadTime || null,
-        data.performanceMetrics?.domInteractive || null,
-        data.performanceMetrics?.domContentLoaded || null,
-        data.performanceMetrics?.firstPaint || null,
-        data.deviceInfo?.colorDepth || null,
-        data.deviceInfo?.pixelRatio || null,
-        data.deviceInfo?.touchPoints || null,
-        data.deviceInfo?.platform || null
+        data.loadTime || null,
+        data.domInteractive || null,
+        data.domContentLoaded || null,
+        data.firstPaint || null,
+        data.colorDepth || null,
+        data.pixelRatio || null,
+        data.touchPoints || null,
+        data.platform || null
     ];
 
     try {
