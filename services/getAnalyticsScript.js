@@ -52,6 +52,7 @@ function getAnalyticsScript() {
     }
 
     function sendAnalytics(data) {
+      console.log('Sending analytics data: ', analyticsData);
       try {
         const analyticsData = {
           url: window.location.href,
