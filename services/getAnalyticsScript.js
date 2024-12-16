@@ -40,13 +40,15 @@ function getAnalyticsScript() {
             };
         }
 
-        // Helper: Get performance metrics
+        // Helper: Get performance metrics (fix invalid negative values)
         function getPerformanceMetrics() {
-            const timing = window.performance.timing;
+            const timing = window.performance?.timing || {};
+            const navigationStart = timing.navigationStart;
+
             return {
-                loadTime: timing.loadEventEnd - timing.navigationStart || null,
-                domInteractive: timing.domInteractive - timing.navigationStart || null,
-                domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart || null,
+                loadTime: timing.loadEventEnd > navigationStart ? timing.loadEventEnd - navigationStart : null,
+                domInteractive: timing.domInteractive > navigationStart ? timing.domInteractive - navigationStart : null,
+                domContentLoaded: timing.domContentLoadedEventEnd > navigationStart ? timing.domContentLoadedEventEnd - navigationStart : null,
                 firstPaint: window.performance.getEntriesByType('paint')[0]?.startTime || null
             };
         }
@@ -98,7 +100,9 @@ function getAnalyticsScript() {
 
         // Page view tracking
         function trackPageView() {
-            sendAnalytics({ eventType: 'pageview' });
+            window.addEventListener('load', () => {
+                sendAnalytics({ eventType: 'pageview' });
+            });
         }
 
         // Event tracking
@@ -145,7 +149,7 @@ function getAnalyticsScript() {
         };
 
         // Track the page view on load
-        setTimeout(trackPageView, 0);
+        trackPageView();
         initClickTracking();
     })();
   `;
