@@ -4,6 +4,7 @@ async function saveAnalytics(req, res) {
     try {
         const data = req.body;
         data.ipAddress = req.ip; // Capture IP address from the request
+        console.log(`saveAnalytics/Controller, data=${JSON.stringify(data)}`);
         await saveAnalyticsData(data);
         res.status(200).send({ message: 'Analytics data saved successfully' });
     } catch (error) {
