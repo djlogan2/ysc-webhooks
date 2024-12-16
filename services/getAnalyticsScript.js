@@ -81,7 +81,8 @@ function getAnalyticsScript() {
                 };
 
                 if (navigator.sendBeacon) {
-                    navigator.sendBeacon('/api/analytics', JSON.stringify(analyticsData));
+                    const blob = new Blob([JSON.stringify(analyticsData)], { type: 'application/json' });
+                    navigator.sendBeacon('/api/analytics', blob);
                 } else {
                     fetch('/api/analytics', {
                         method: 'POST',
