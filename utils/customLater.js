@@ -45,7 +45,9 @@ export class CustomLater {
      */
     next(schedule, count, utcDate) {
         const zonedDate = DateTime.fromJSDate(utcDate, { zone: this.timezone }).toJSDate();
-        const nextDates = later.schedule(schedule).next(count, zonedDate);
+        let nextDates = later.schedule(schedule).next(count, zonedDate);
+        if(count === 1)
+            nextDates = [nextDates];
         return nextDates.map((date) =>
             DateTime.fromJSDate(date, { zone: this.timezone }).toUTC().toJSDate()
         );

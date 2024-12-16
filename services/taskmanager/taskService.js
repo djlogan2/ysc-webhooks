@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import pool from '../db.js';
-import {CustomLater} from "../../utils/customLater.js";
+import { CustomLater } from '../../utils/customLater.js';
 
 function isValidTimezone(timezone) {
     try {
@@ -96,12 +96,13 @@ export const createTask = async (taskData, timezone) => {
         // Convert due_date from UTC to the user's time zone for validation
         let userDueDate = null;
         if (taskData.due_date) {
+            userDueDate = DateTime.fromISO(taskData.due_date, { zone: 'UTC' }).setZone(timezone).toJSDate();
             if (!later.isValid(schedule, userDueDate)) {
                 throw new Error('Due date does not align with recurring_interval.');
             }
         } else {
             // Compute due_date if missing
-            const nextDate = later.next(schedule,1, new Date());
+            const nextDate = later.next(schedule, 1, new Date());
             if (!nextDate) {
                 throw new Error('Unable to compute due_date from recurring_interval.');
             }
@@ -140,7 +141,6 @@ export const createTask = async (taskData, timezone) => {
     return rows[0];
 };
 
-
 // Update a task by ID
 export const updateTask = async (taskObject, timezone = 'UTC') => {
     if (!taskObject.task_id) {
@@ -156,8 +156,7 @@ export const updateTask = async (taskObject, timezone = 'UTC') => {
     );
 
     if (rows.length === 0) {
-        return null;
-        // throw new Error('Task not found');
+        throw new Error('Task not found');
     }
 
     const currentTask = rows[0];
@@ -178,24 +177,16 @@ export const updateTask = async (taskObject, timezone = 'UTC') => {
 
     // Validate recurring_interval and due_date if either changes
     if (newRecurringInterval !== oldRecurringInterval || newDueDate !== oldDueDate) {
+        const later = new CustomLater(timezone);
         if (newRecurringInterval) {
-            const schedule = later.parse.text(newRecurringInterval);
+            const schedule = later.parseText(newRecurringInterval);
             if (schedule.error !== -1) {
                 throw new Error(`Invalid recurring_interval: ${newRecurringInterval}`);
             }
 
             // Calculate valid due dates using the timezone
-            if(!isValidTimezone(timezone))
-                throw new Error('Invalid Timezone');
-            else if(!newDueDate)
-                throw new Error('Cannot set due date to null on a recurring task');
-            const nowInTimezone = DateTime.fromISO(newDueDate, { zone: 'UTC' }).setZone(timezone).toJSDate();
-            const isValidDueDate = later.schedule(schedule).isValid(nowInTimezone); //.next(5, nowInTimezone);
-            // const isValidDueDate = validDates.some(
-            //     (date) => DateTime.fromJSDate(date).toUTC().toISO() === newDueDate
-            // );
-
-            if (!newDueDate || !isValidDueDate) {
+            const userDueDate = DateTime.fromISO(newDueDate, { zone: 'UTC' }).setZone(timezone).toJSDate();
+            if (!later.isValid(schedule, userDueDate)) {
                 throw new Error(
                     'Due date does not align with the recurring interval. Either provide a valid due date or adjust the interval.'
                 );
@@ -205,18 +196,19 @@ export const updateTask = async (taskObject, timezone = 'UTC') => {
 
     // Check if the task is being marked as Completed and handle recurring logic
     if (taskObject.status === 'Completed' && oldRecurringInterval) {
-        const schedule = later.parse.text(oldRecurringInterval);
+        const later = new CustomLater(timezone);
+        const schedule = later.parseText(oldRecurringInterval);
         if (schedule.error !== -1) {
             throw new Error(`Invalid recurring_interval: ${oldRecurringInterval}`);
         }
 
-        const nextDates = later.schedule(schedule).next(2, new Date(oldDueDate));
+        const nextDates = later.next(schedule, 2, new Date(oldDueDate));
         const nextDueDate = nextDates.length > 1 ? nextDates[1] : null;
 
         if (nextDueDate) {
             // Create the next recurring task
             await pool.query(
-                `INSERT INTO dj.taskmanager_tasks 
+                `INSERT INTO dj.taskmanager_tasks
                  (task_name, description, due_date, project_id, context_id, priority_id, recurring_interval)
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
@@ -272,42 +264,29 @@ export const completeTask = async (id) => {
 
     await pool.query('UPDATE dj.taskmanager_tasks SET status = "Completed", updated_at = NOW() WHERE task_id = ?', [id]);
 
-    if (task.schedule_expression) {
-        const nextDueDate = calculateNextDueDate(task.due_date, task.schedule_expression);
-        await pool.query(
-            `INSERT INTO dj.taskmanager_tasks
-             (task_name, description, status, project_id, client_id, context_id, priority_id,
-              due_date, start_date, time_estimate, energy_level, effort, impact, schedule_expression)
-             VALUES (?, ?, "Next Action", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                task.task_name,
-                task.description,
-                task.project_id,
-                task.client_id,
-                task.context_id,
-                task.priority_id,
-                nextDueDate,
-                nextDueDate,
-                task.time_estimate,
-                task.energy_level,
-                task.effort,
-                task.impact,
-                task.schedule_expression,
-            ]
-        );
+    if (task.recurring_interval) {
+        const later = new CustomLater('UTC');
+        const schedule = later.parseText(task.recurring_interval);
+        const nextDueDate = later.next(schedule, 1, new Date(task.due_date));
+        if (nextDueDate) {
+            await pool.query(
+                `INSERT INTO dj.taskmanager_tasks
+                 (task_name, description, status, project_id, context_id, priority_id,
+                  due_date, start_date, recurring_interval)
+                 VALUES (?, ?, "Next Action", ?, ?, ?, ?, ?, ?)`,
+                [
+                    task.task_name,
+                    task.description,
+                    task.project_id,
+                    task.context_id,
+                    task.priority_id,
+                    DateTime.fromJSDate(nextDueDate).toUTC().toISO(),
+                    null,
+                    task.recurring_interval
+                ]
+            );
+        }
     }
 
     return task;
-};
-
-// Helper: Calculate next due date for recurring tasks
-const calculateNextDueDate = (currentDueDate, scheduleExpression) => {
-    const schedule = later.parse.text(scheduleExpression);
-    if (schedule.error > -1) {
-        throw new Error(`Invalid schedule expression: ${scheduleExpression}`);
-    }
-
-    const current = new Date(currentDueDate || Date.now());
-    const nextOccurrence = later.schedule(schedule).next(1, current);
-    return nextOccurrence.toISOString().slice(0, 19).replace('T', ' ');
 };
