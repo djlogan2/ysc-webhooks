@@ -1,9 +1,11 @@
 import {  saveAnalyticsData, queryAnalyticsData  } from '../services/analyticsService.js';
 
-// Controller to save analytics data
 async function saveAnalytics(req, res) {
     try {
         const data = req.body;
+        data.ipAddress = req.ip; // Capture IP address from the request
+        console.log('Headers:', req.headers);
+        console.log(`saveAnalytics/Controller, data=${JSON.stringify(data)}`);
         await saveAnalyticsData(data);
         res.status(200).send({ message: 'Analytics data saved successfully' });
     } catch (error) {
@@ -12,10 +14,14 @@ async function saveAnalytics(req, res) {
     }
 }
 
-// Controller to query analytics data
 async function getAnalytics(req, res) {
     try {
-        const { filters } = req.query; // Extend this as needed for future use
+        const filters = {
+            startDate: req.query.startDate,
+            endDate: req.query.endDate,
+            eventType: req.query.eventType,
+            userId: req.query.userId
+        };
         const data = await queryAnalyticsData(filters);
         res.status(200).send(data);
     } catch (error) {
