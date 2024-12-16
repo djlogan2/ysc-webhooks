@@ -88,4 +88,4 @@ function getAnalyticsScript() {
   `;
 }
 
-export { getAnalyticsScript };
+module.exports = { getAnalyticsScript };
