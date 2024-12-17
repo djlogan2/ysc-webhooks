@@ -1,4 +1,4 @@
-import contextService from '../../services/taskmanager/contextService.js';
+import * as contextService from '../../services/taskmanager/contextService.js';
 
 export const getAllContexts = async (req, res) => {
     try {

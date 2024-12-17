@@ -1,4 +1,4 @@
-import tagService from '../../services/taskmanager/tagService.js';
+import * as tagService from '../../services/taskmanager/tagService.js';
 
 export const getAllTags = async (req, res) => {
     try {
@@ -13,7 +13,6 @@ export const getAllTags = async (req, res) => {
 export const createTag = async (req, res) => {
     try {
         const { tag_name } = req.body;
-        console.log('Received tag_name:', tag_name); // Debug log
 
         // Validate input
         if (!tag_name || typeof tag_name !== 'string') {

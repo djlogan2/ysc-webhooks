@@ -1,4 +1,4 @@
-import priorityService from '../../services/taskmanager/priorityService.js';
+import * as priorityService from '../../services/taskmanager/priorityService.js';
 
 export const getAllPriorities = async (req, res) => {
     try {

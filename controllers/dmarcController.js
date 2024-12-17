@@ -1,4 +1,4 @@
-import dmarcService from '../services/dmarcService.js';
+import * as dmarcService from "../services/dmarcService.js";
 
 class DMARCController {
     async writeDMARCRecord(req, res) {

@@ -1,4 +1,4 @@
-import projectService from '../../services/taskmanager/projectService.js';
+import * as projectService from '../../services/taskmanager/projectService.js';
 
 // Create a project
 export const createProject = async (req, res) => {

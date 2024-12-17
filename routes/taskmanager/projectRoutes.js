@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import projectController from '../../controllers/taskmanager/projectController.js';
+import * as projectController from '../../controllers/taskmanager/projectController.js';
 
 router.post('/', projectController.createProject);
 router.get('/', projectController.getAllProjects);

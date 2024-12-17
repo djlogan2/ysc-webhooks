@@ -1,9 +1,9 @@
 // import taskService from '../services/taskService.js';
 // import notificationService from '../services/notificationService.js';
-import calendarService from '../services/calendarService.js';
+import * as calendarService from '../services/calendarService.js';
 import { runEvery } from '../services/scheduler.js';
 
-async function runBackgroundAssistant() {
+export const runBackgroundAssistant = async() => {
     runEvery(parseInt(process.env.ASSISTANT_MINUTES || "30"), async () => {
         try {
             // 1. Check for overdue tasks
@@ -34,6 +34,3 @@ async function runBackgroundAssistant() {
         }
     });
 }
-
-
-export { runBackgroundAssistant };

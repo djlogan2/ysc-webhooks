@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import clientController from '../../controllers/taskmanager/clientController.js';
+import * as clientController from '../../controllers/taskmanager/clientController.js';
 
 // Define routes
 router.get('/', clientController.getAllClients);

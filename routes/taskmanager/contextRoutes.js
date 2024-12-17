@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import contextController from '../../controllers/taskmanager/contextController.js';
+import * as contextController from '../../controllers/taskmanager/contextController.js';
 
 router.get('/', contextController.getAllContexts);
 router.post('/', contextController.createContext);

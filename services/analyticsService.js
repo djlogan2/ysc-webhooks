@@ -1,7 +1,6 @@
 import db from './db.js';
 
-async function saveAnalyticsData(data) {
-    console.log('Saving data to database:', data);
+export const saveAnalyticsData = async (data) => {
     const query = `
     INSERT INTO analytics
     (event_type, url, referrer, user_agent, screen_size, language, timestamp, 
@@ -44,7 +43,7 @@ async function saveAnalyticsData(data) {
     }
 }
 
-async function queryAnalyticsData(filters) {
+export const queryAnalyticsData = async (filters) => {
     let query = `SELECT * FROM analytics`;
     const params = [];
 
@@ -69,4 +68,3 @@ async function queryAnalyticsData(filters) {
     return rows;
 }
 
-module.exports = { saveAnalyticsData, queryAnalyticsData };

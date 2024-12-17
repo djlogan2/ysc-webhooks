@@ -1,4 +1,4 @@
-import noteService from '../../services/taskmanager/noteService.js';
+import * as noteService from '../../services/taskmanager/noteService.js';
 
 export const getNotesByTaskId = async (req, res) => {
     try {

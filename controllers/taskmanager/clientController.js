@@ -1,4 +1,4 @@
-import clientService from '../../services/taskmanager/clientService.js';
+import * as clientService from '../../services/taskmanager/clientService.js';
 
 export const getAllClients = async (req, res) => {
     try {

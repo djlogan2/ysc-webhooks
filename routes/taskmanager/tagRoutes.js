@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import tagController from '../../controllers/taskmanager/tagController.js';
+import * as tagController from '../../controllers/taskmanager/tagController.js';
 
 router.get('/', tagController.getAllTags);
 router.post('/', tagController.createTag);
