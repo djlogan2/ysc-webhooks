@@ -1,4 +1,4 @@
-import express from 'express.js';
+import express from 'express';
 import {  saveAnalytics, getAnalytics  } from '../controllers/analyticsController.js';
 
 const router = express.Router();

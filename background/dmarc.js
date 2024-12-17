@@ -1,5 +1,5 @@
-import {  parseStringPromise  } from 'xml2js.js';
-import {  unzipSync  } from 'zlib.js';
+import {  parseStringPromise  } from 'xml2js';
+import {  unzipSync  } from 'zlib';
 
 import {  createTask  } from '../services/taskmanager/taskService.js'; // Assuming taskService is already set up
 

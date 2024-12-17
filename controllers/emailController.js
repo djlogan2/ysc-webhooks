@@ -1,4 +1,4 @@
-import emailService from '../services/emailService.js';
+import * as emailService from '../services/emailService.js';
 
 export const readEmails = async (req, res) => {
     try {

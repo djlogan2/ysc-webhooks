@@ -1,4 +1,4 @@
-import express from 'express.js';
+import express from 'express';
 import emailRoutes from './routes/emailRoutes.js';
 import calendarRoutes from './routes/calendarRoutes.js';
 import dmarcRoutes from './routes/dmarcRoutes.js';

@@ -1,4 +1,4 @@
-import calendarConfig from '../config/calendarConfig.js';
+import * as calendarConfig from '../config/calendarConfig.js';
 
 export const getCalendar = async () => {
     // Logic to fetch calendar data

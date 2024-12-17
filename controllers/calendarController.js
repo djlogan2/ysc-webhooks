@@ -1,4 +1,4 @@
-import calendarService from '../services/calendarService.js';
+import * as calendarService from '../services/calendarService.js';
 
 export const readCalendar = async (req, res) => {
     try {

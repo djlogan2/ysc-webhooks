@@ -1,4 +1,4 @@
-import express from 'express.js';
+import express from 'express';
 import dmarcController from '../controllers/dmarcController.js';
 
 const router = express.Router();

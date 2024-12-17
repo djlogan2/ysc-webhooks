@@ -1,4 +1,4 @@
-import express from 'express.js';
+import express from 'express';
 const router = express.Router();
 import priorityController from '../../controllers/taskmanager/priorityController.js';
 
