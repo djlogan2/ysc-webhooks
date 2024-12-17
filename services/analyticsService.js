@@ -1,4 +1,4 @@
-const db = require('./db');
+import db from './db.js';
 
 async function saveAnalyticsData(data) {
     console.log('Saving data to database:', data);

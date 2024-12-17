@@ -1,4 +1,4 @@
-import { parseISO, isBefore } from 'date-fns';
+import {isBefore, parseISO} from 'date-fns';
 import pool from '../db.js';
 
 // Create a project
@@ -31,13 +31,12 @@ export const createProject = async (projectData) => {
 
 // Get all projects
 export const getAllProjects = async () => {
-    const [rows] = await pool.query(`SELECT * FROM dj.taskmanager_projects WHERE archived=0 or archived IS NULL`);
-    return rows;
+    return pool.query(`SELECT * FROM dj.taskmanager_projects WHERE archived=0 or archived IS NULL`);
 };
 
 // Get a single project by ID
 export const getProjectById = async (projectId) => {
-    const [rows] = await pool.query(
+    const rows = await pool.query(
         `SELECT * FROM dj.taskmanager_projects WHERE project_id = ?`,
         [projectId]
     );

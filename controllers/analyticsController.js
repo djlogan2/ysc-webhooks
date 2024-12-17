@@ -3,9 +3,7 @@ import {  saveAnalyticsData, queryAnalyticsData  } from '../services/analyticsSe
 async function saveAnalytics(req, res) {
     try {
         const data = req.body;
-        data.ipAddress = req.ip; // Capture IP address from the request
-        console.log('Headers:', req.headers);
-        console.log(`saveAnalytics/Controller, data=${JSON.stringify(data)}`);
+        data.ipAddress = req.ip;
         await saveAnalyticsData(data);
         res.status(200).send({ message: 'Analytics data saved successfully' });
     } catch (error) {

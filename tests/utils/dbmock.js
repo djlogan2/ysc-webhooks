@@ -193,10 +193,10 @@ class DBMock {
             }
 
             if (!results?.length) {
-                return [[]];
+                return [];
             }
             console.log(`SELECT results: ${JSON.stringify([results])}`);
-            return [results];
+            return results;
         }
 
         if (ast.type === 'update') {
